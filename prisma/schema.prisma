@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[] @relation("FolderTree")
+  campaigns Campaign[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Campaign {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  folderId  String?
+  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  // Section 1 — Overview
+  weekOf          String?
+  brand           String?  @default("Ford Pro")
+  businessUnit    String?
+  childProd       String?
+  country         String?
+  language        String?
+  emailBuildType  String?
+  figmaLink       String?
+  figmaFileName   String?
+  campaignName    String?
+  productLine     String?
+  audience        String?
+  segmentation    String?
+  campaignType    String?
+  sendType        String?
+  numSends        Int?     @default(1)
+  sendFromName    String?
+  sendFromAddress String?  @default("reply@e.fordpro.com")
+  desiredSendDate String?
+  desiredSendTime String?
+  sto             Boolean? @default(false)
+  miroUrl         String?
+  status          String   @default("draft")
+
+  // Section 2 — Special Instructions
+  sendThrottle            Boolean? @default(false)
+  sendThrottleRate        String?
+  abTest                  Boolean? @default(false)
+  abTestType              String?
+  abAudienceSplit         String?
+  contentBlock            Boolean? @default(false)
+  contentBlockProductLine String?
+  contentBlockProductName String?
+  contentBlockName        String?
+  contentBlockDesc        String?
+  notes                   String?
+
+  // Section 3 — Targeting
+  segmentationDesc String?
+  audienceSource   String?
+  seg1Field        String?
+  seg1Condition    String?
+  seg1Value        String?
+  seg2Field        String?
+  seg2Condition    String?
+  seg2Value        String?
+  seg3Field        String?
+  seg3Condition    String?
+  seg3Value        String?
+  seg4Field        String?
+  seg4Condition    String?
+  seg4Value        String?
+  engagementSplits String?
+
+  // Section 4 — Orchestration
+  orchestrationDesc String?
+
+  emailSends  EmailSend[]
+  links       CampaignLink[]
+  seedLists   SeedListEntry[]
+}
+
+model EmailSend {
+  id            String   @id @default(cuid())
+  campaignId    String
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  emailNumber   Int
+  productLine   String?
+  description   String?
+  audience      String?
+  segmentation  String?
+  country       String?
+  language      String?
+  versionType   String?
+  emailGroupNum Int?     @default(1)
+  figmaFileName String?
+  isTest        Boolean? @default(false)
+  subjectLine   String?
+  preheader     String?
+}
+
+model CampaignLink {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  emailNumber Int
+  ctaName     String?
+  assetType   String?
+  alias       String?
+  baseUrl     String?
+}
+
+model SeedListEntry {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  listType   String
+  firstName  String?
+  email      String?
+}
+
+model AppSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
