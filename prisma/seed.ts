@@ -51,8 +51,8 @@ const DEFAULT_SETTINGS: Record<string, string[]> = {
     "FINCODE",
     "NONFINCODE",
   ],
-  dropdown_country: ["US", "CAN"],
-  dropdown_language: ["E (English)", "F (French)"],
+  dropdown_country: ["US", "C"],
+  dropdown_language: ["E", "F"],
   dropdown_campaignType: ["Always-on", "API trigger", "One-time"],
   dropdown_sendType: ["Multi-touch", "Single message", "Re-send"],
   dropdown_emailBuildType: ["New HTML", "Template-based", "Update Existing", "Content Block"],
@@ -87,7 +87,7 @@ async function main() {
   for (const [key, values] of Object.entries(DEFAULT_SETTINGS)) {
     await prisma.appSettings.upsert({
       where: { key },
-      update: {},
+      update: { value: JSON.stringify(values) },
       create: { key, value: JSON.stringify(values) },
     });
   }
@@ -112,7 +112,7 @@ async function main() {
         audience: "Fleets",
         segmentation: "Telematics",
         country: "US",
-        language: "E (English)",
+        language: "E",
         emailBuildType: "Template-based",
         campaignType: "One-time",
         sendType: "Single message",
@@ -134,7 +134,7 @@ async function main() {
         audience: "Fleets",
         segmentation: "Telematics",
         country: "US",
-        language: "E (English)",
+        language: "E",
         versionType: "No",
         emailGroupNum: 1,
         subjectLine: "Spring into savings with Ford Pro Fleet",
