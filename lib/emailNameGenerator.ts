@@ -23,6 +23,13 @@ function firstChar(str: string | null | undefined): string {
   return (str ?? "").charAt(0);
 }
 
+// Extracts the language letter from values like "English (E)" → "E", or falls back to first char
+function langChar(str: string | null | undefined): string {
+  const match = (str ?? "").match(/\(([A-Z])\)/);
+  if (match) return match[1];
+  return firstChar(str);
+}
+
 export interface MainEmailNameParams {
   productLine?: string | null;
   weekOf?: string | null;
@@ -45,7 +52,7 @@ export function generateMainEmailName(params: MainEmailNameParams): string | nul
     params.audience ?? "",
     params.segmentation ?? "",
     params.country ?? "",
-    firstChar(params.language),
+    langChar(params.language),
     "Email1",
   ];
 
@@ -99,7 +106,7 @@ export function generateOrchestrationEmailName(params: OrchestrationEmailNamePar
     params.audience ?? "",
     params.segmentation ?? "",
     params.country ?? "",
-    firstChar(params.language),
+    langChar(params.language),
     emailSuffix,
   ];
 

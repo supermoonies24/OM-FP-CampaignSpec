@@ -9,6 +9,7 @@ import { DropdownEditor } from "@/components/settings/DropdownEditor";
 import { useSettings } from "@/contexts/SettingsContext";
 
 const DROPDOWN_DEFS: { key: string; label: string }[] = [
+  { key: "dropdown_brand", label: "Brand" },
   { key: "dropdown_productLineShort", label: "Product Line (Short)" },
   { key: "dropdown_productLineFull", label: "Product Line (Full — Content Block)" },
   { key: "dropdown_audience", label: "Audience" },

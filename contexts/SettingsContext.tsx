@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
 export interface AppSettings {
+  dropdown_brand: string[];
   dropdown_productLineShort: string[];
   dropdown_productLineFull: string[];
   dropdown_audience: string[];
@@ -25,6 +26,7 @@ export interface AppSettings {
 }
 
 const defaultSettings: AppSettings = {
+  dropdown_brand: [],
   dropdown_productLineShort: [],
   dropdown_productLineFull: [],
   dropdown_audience: [],

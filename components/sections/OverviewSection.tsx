@@ -3,7 +3,6 @@
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -39,6 +38,12 @@ function FormField({ label, required, tooltip, children, error }: {
 
 const NAME_VALIDATION_ERROR = "Campaign name cannot contain spaces, dashes, or underscores — it is used directly in the generated email name";
 
+const CAMPAIGN_TYPE_TIPS: Record<string, string> = {
+  "Always-on": "Runs forever; subscribers added on a regular basis. Set it and forget it. Examples: welcome emails, journeys or automations in SFMC",
+  "API trigger": "Initiated by subscriber behavior — transactional in nature (purchase, password reset). Smaller and more niche than always-on",
+  "One-time": "Newsletters, batch, promos, ad-hoc sends — anything not recurring. Can be a single email or a multi-touch journey run once",
+};
+
 export function OverviewSection({ form }: OverviewSectionProps) {
   const { settings } = useSettings();
   const { register, watch, setValue, formState: { errors } } = form;
@@ -60,25 +65,6 @@ export function OverviewSection({ form }: OverviewSectionProps) {
     return (val: string) => setValue(name, val as never, { shouldDirty: true });
   }
 
-  const CAMPAIGN_TYPE_TIPS: Record<string, string> = {
-    "Always-on": "Runs forever; subscribers added on a regular basis. Set it and forget it. Examples: welcome emails, journeys or automations in SFMC",
-    "API trigger": "Initiated by subscriber behavior — transactional in nature (purchase, password reset). Smaller and more niche than always-on",
-    "One-time": "Newsletters, batch, promos, ad-hoc sends — anything not recurring. Can be a single email or a multi-touch journey run once",
-  };
-
-  const SEND_TYPE_TIPS: Record<string, string> = {
-    "Multi-touch": "Audience receives more than one related email. Examples: welcome series, drip campaigns, event invites and reminders",
-    "Single message": "One email for this campaign. Examples: newsletters, ad-hoc promos, transactional singles like reset password",
-    "Re-send": "Same creative, same audience, updated subject line and/or pre-header — e.g. resend to non-openers",
-  };
-
-  const BUILD_TYPE_TIPS: Record<string, string> = {
-    "New HTML": "Newly designed, requires front-end dev to build HTML, pasted into SFMC. No design restrictions",
-    "Template-based": "Modular design system, no front-end dev needed, built with content blocks inside SFMC",
-    "Update Existing": "Existing HTML or template needing minor tweaks — common with automations and triggered sends",
-    "Content Block": "New content block only, coded from design, added to an existing email. Limited spec details needed",
-  };
-
   return (
     <section id="overview" className="scroll-mt-20">
       <h2 className="text-lg font-semibold mb-4">Campaign Overview</h2>
@@ -91,17 +77,12 @@ export function OverviewSection({ form }: OverviewSectionProps) {
 
         {/* Brand */}
         <FormField label="Brand">
-          <Input {...register("brand")} placeholder="Ford Pro" />
-        </FormField>
-
-        {/* Business Unit */}
-        <FormField label="Business Unit">
-          <Input {...register("businessUnit")} placeholder="e.g. Fleet" />
-        </FormField>
-
-        {/* Child Prod */}
-        <FormField label="Child Prod">
-          <Input {...register("childProd")} placeholder="e.g. Transit" />
+          <Select value={values.brand ?? ""} onValueChange={sel("brand")}>
+            <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+            <SelectContent>
+              {settings.dropdown_brand.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </FormField>
 
         {/* Country */}
@@ -124,9 +105,8 @@ export function OverviewSection({ form }: OverviewSectionProps) {
           </Select>
         </FormField>
 
-        {/* Email Build Type */}
-        <FormField label="Email Build Type"
-          tooltip={Object.entries(BUILD_TYPE_TIPS).map(([k, v]) => `${k}: ${v}`).join("\n\n")}>
+        {/* Email Build Type — no tooltip per request */}
+        <FormField label="Email Build Type">
           <Select value={values.emailBuildType ?? ""} onValueChange={sel("emailBuildType")}>
             <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
             <SelectContent>
@@ -140,22 +120,23 @@ export function OverviewSection({ form }: OverviewSectionProps) {
           <Input {...register("figmaLink")} placeholder="https://figma.com/…" type="url" />
         </FormField>
 
-        {/* Figma File Name */}
-        <FormField label="Figma File Name">
-          <Input {...register("figmaFileName")} placeholder="e.g. FordPro_Spring2026" />
+        {/* Figma File URL (renamed from Figma File Name) */}
+        <FormField label="Figma File URL">
+          <Input {...register("figmaFileName")} placeholder="https://figma.com/file/…" type="url" />
         </FormField>
 
         {/* Campaign Name */}
-        <FormField label="Campaign Name"
+        <FormField
+          label="Campaign Name"
           error={errors.campaignName?.message}
-          tooltip="Used directly in the generated email name. No spaces, dashes, or underscores allowed.">
+          tooltip="No spaces, dashes, or underscores allowed — this value is used directly in the auto-generated SFMC email name."
+        >
           <Input
             {...register("campaignName", {
               validate: (v) => !v || /^[^\s\-_]+$/.test(v) || NAME_VALIDATION_ERROR,
             })}
             placeholder="e.g. SpringFleetPromo"
           />
-          <p className="text-xs text-muted-foreground">No spaces, dashes, or underscores</p>
         </FormField>
 
         {/* Product Line */}
@@ -189,23 +170,14 @@ export function OverviewSection({ form }: OverviewSectionProps) {
         </FormField>
 
         {/* Campaign Type */}
-        <FormField label="Campaign Type"
-          tooltip={Object.entries(CAMPAIGN_TYPE_TIPS).map(([k, v]) => `${k}: ${v}`).join("\n\n")}>
+        <FormField
+          label="Campaign Type"
+          tooltip={Object.entries(CAMPAIGN_TYPE_TIPS).map(([k, v]) => `${k}: ${v}`).join("\n\n")}
+        >
           <Select value={values.campaignType ?? ""} onValueChange={sel("campaignType")}>
             <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
             <SelectContent>
               {settings.dropdown_campaignType.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </FormField>
-
-        {/* Send Type */}
-        <FormField label="Send Type"
-          tooltip={Object.entries(SEND_TYPE_TIPS).map(([k, v]) => `${k}: ${v}`).join("\n\n")}>
-          <Select value={values.sendType ?? ""} onValueChange={sel("sendType")}>
-            <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-            <SelectContent>
-              {settings.dropdown_sendType.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
         </FormField>
@@ -221,8 +193,10 @@ export function OverviewSection({ form }: OverviewSectionProps) {
         </FormField>
 
         {/* Send From Name */}
-        <FormField label="Send From Name"
-          tooltip="What the subscriber sees as the from name in the preview pane — the first impression of the email">
+        <FormField
+          label="Send From Name"
+          tooltip="What the subscriber sees as the from name in the preview pane — the first impression of the email"
+        >
           <Select value={values.sendFromName ?? ""} onValueChange={sel("sendFromName")}>
             <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
             <SelectContent>
@@ -232,9 +206,15 @@ export function OverviewSection({ form }: OverviewSectionProps) {
         </FormField>
 
         {/* Send From Address */}
-        <FormField label="Send From Address"
-          tooltip="Branded from address. Most ISPs hide this unless the subscriber clicks the from name to reveal it">
-          <Input value={values.sendFromAddress ?? "reply@e.fordpro.com"} readOnly className="bg-muted text-muted-foreground cursor-not-allowed" />
+        <FormField
+          label="Send From Address"
+          tooltip="Branded from address. Most ISPs hide this unless the subscriber clicks the from name to reveal it"
+        >
+          <Input
+            value={values.sendFromAddress ?? "reply@e.fordpro.com"}
+            readOnly
+            className="bg-muted text-muted-foreground cursor-not-allowed"
+          />
         </FormField>
 
         {/* Desired Send Date */}
@@ -265,6 +245,7 @@ export function OverviewSection({ form }: OverviewSectionProps) {
         <FormField label="Miro Board URL">
           <Input {...register("miroUrl")} placeholder="https://miro.com/app/board/…" type="url" />
         </FormField>
+
       </div>
 
       {/* Email Name Output */}

@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const DEFAULT_SETTINGS: Record<string, string[]> = {
+  dropdown_brand: ["Ford Pro", "Ford"],
   dropdown_productLineShort: [
     "VEH (Vehicle)",
     "SOF (Software)",
@@ -52,10 +53,10 @@ const DEFAULT_SETTINGS: Record<string, string[]> = {
     "NONFINCODE",
   ],
   dropdown_country: ["US", "C"],
-  dropdown_language: ["E", "F"],
+  dropdown_language: ["English (E)", "French (F)"],
   dropdown_campaignType: ["Always-on", "API trigger", "One-time"],
   dropdown_sendType: ["Multi-touch", "Single message", "Re-send"],
-  dropdown_emailBuildType: ["New HTML", "Template-based", "Update Existing", "Content Block"],
+  dropdown_emailBuildType: ["New", "Existing"],
   dropdown_sendFromName: [
     "Ford Fleet Care",
     "Ford Pro Fleet Network",
