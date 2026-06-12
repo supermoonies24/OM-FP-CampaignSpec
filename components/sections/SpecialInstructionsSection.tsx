@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ColoredSelect } from "@/components/ui/ColoredSelect";
 import { EmailNameOutput } from "@/components/ui/EmailNameOutput";
 import { useSettings } from "@/contexts/SettingsContext";
 import { generateContentBlockName } from "@/lib/emailNameGenerator";
@@ -72,21 +72,19 @@ export function SpecialInstructionsSection({ form }: SpecialInstructionsSectionP
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
                 <Label>Test Type</Label>
-                <Select value={values.abTestType ?? ""} onValueChange={sel("abTestType")}>
-                  <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                  <SelectContent>
-                    {settings.dropdown_abTestType.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <ColoredSelect
+                  value={values.abTestType ?? ""}
+                  onValueChange={sel("abTestType")}
+                  options={settings.dropdown_abTestType}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Audience Split</Label>
-                <Select value={values.abAudienceSplit ?? ""} onValueChange={sel("abAudienceSplit")}>
-                  <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                  <SelectContent>
-                    {settings.dropdown_abAudienceSplit.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <ColoredSelect
+                  value={values.abAudienceSplit ?? ""}
+                  onValueChange={sel("abAudienceSplit")}
+                  options={settings.dropdown_abAudienceSplit}
+                />
               </div>
             </CardContent>
           )}
@@ -108,12 +106,11 @@ export function SpecialInstructionsSection({ form }: SpecialInstructionsSectionP
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Product Line (Full)</Label>
-                  <Select value={values.contentBlockProductLine ?? ""} onValueChange={sel("contentBlockProductLine")}>
-                    <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                    <SelectContent>
-                      {settings.dropdown_productLineFull.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <ColoredSelect
+                    value={values.contentBlockProductLine ?? ""}
+                    onValueChange={sel("contentBlockProductLine")}
+                    options={settings.dropdown_productLineFull}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Product Name</Label>

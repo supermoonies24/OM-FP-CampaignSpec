@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ColoredSelect } from "@/components/ui/ColoredSelect";
 import { useSettings } from "@/contexts/SettingsContext";
 import type { CampaignFormValues } from "@/app/campaigns/[id]/page";
 
@@ -38,12 +38,12 @@ export function TargetingSection({ form }: TargetingSectionProps) {
 
         <div className="space-y-1.5">
           <Label>Audience Source</Label>
-          <Select value={values.audienceSource ?? ""} onValueChange={(v) => setValue("audienceSource", v, { shouldDirty: true })}>
-            <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select…" /></SelectTrigger>
-            <SelectContent>
-              {settings.dropdown_audienceSource.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <ColoredSelect
+            value={values.audienceSource ?? ""}
+            onValueChange={(v) => setValue("audienceSource", v, { shouldDirty: true })}
+            options={settings.dropdown_audienceSource}
+            className="max-w-xs"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
