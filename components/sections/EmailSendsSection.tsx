@@ -1,6 +1,6 @@
 "use client";
 
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, useWatch } from "react-hook-form";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -208,7 +208,7 @@ function SendCard({
 }
 
 export function EmailSendsSection({ form, sends, onSendChange, weekOf }: EmailSendsSectionProps) {
-  const numSends = form.watch("numSends") ?? 1;
+  const numSends = useWatch({ control: form.control, name: "numSends" }) ?? 1;
   const visibleSends = sends.slice(0, numSends);
 
   return (

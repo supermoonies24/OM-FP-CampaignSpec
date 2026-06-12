@@ -1,6 +1,6 @@
 "use client";
 
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, useWatch } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -18,8 +18,8 @@ interface SpecialInstructionsSectionProps {
 
 export function SpecialInstructionsSection({ form }: SpecialInstructionsSectionProps) {
   const { settings } = useSettings();
-  const { register, watch, setValue } = form;
-  const values = watch();
+  const { register, setValue, control } = form;
+  const values = useWatch({ control });
 
   const contentBlockName = generateContentBlockName({
     weekOf: values.weekOf,

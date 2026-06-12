@@ -1,6 +1,6 @@
 "use client";
 
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, useWatch } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +15,8 @@ interface TargetingSectionProps {
 
 export function TargetingSection({ form }: TargetingSectionProps) {
   const { settings } = useSettings();
-  const { register, watch, setValue } = form;
-  const values = watch();
+  const { register, setValue, control } = form;
+  const values = useWatch({ control });
 
   const segments = [
     { label: "Segment 1", field: "seg1Field" as const, condition: "seg1Condition" as const, value: "seg1Value" as const },

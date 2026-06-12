@@ -1,6 +1,6 @@
 "use client";
 
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, useWatch } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -46,9 +46,9 @@ const CAMPAIGN_TYPE_TIPS: Record<string, string> = {
 
 export function OverviewSection({ form }: OverviewSectionProps) {
   const { settings } = useSettings();
-  const { register, watch, setValue, formState: { errors } } = form;
+  const { register, setValue, control, formState: { errors } } = form;
 
-  const values = watch();
+  const values = useWatch({ control });
   const emailName = generateMainEmailName({
     productLine: values.productLine,
     weekOf: values.weekOf,

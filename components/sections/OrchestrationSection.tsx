@@ -1,6 +1,6 @@
 "use client";
 
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, useWatch } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import type { CampaignFormValues } from "@/app/campaigns/[id]/page";
@@ -10,8 +10,8 @@ interface OrchestrationSectionProps {
 }
 
 export function OrchestrationSection({ form }: OrchestrationSectionProps) {
-  const { register, watch } = form;
-  const values = watch();
+  const { register, control } = form;
+  const values = useWatch({ control });
 
   const showBanner = (values.numSends ?? 1) > 1 || values.contentBlock;
 
