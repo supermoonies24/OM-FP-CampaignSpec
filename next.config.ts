@@ -1,13 +1,5 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  webpack: (config) => {
-    config.watchOptions = {
-      ...config.watchOptions,
-      ignored: ["**/node_modules/**", "**/dev.db*", "**/*.db-journal"],
-    };
-    return config;
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
