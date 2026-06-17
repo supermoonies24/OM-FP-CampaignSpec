@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ColoredSelect } from "@/components/ui/ColoredSelect";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useSettings } from "@/contexts/SettingsContext";
 import type { CampaignFormValues } from "@/app/campaigns/[id]/page";
 
@@ -27,7 +28,7 @@ export function TargetingSection({ form }: TargetingSectionProps) {
 
   return (
     <section id="targeting" className="scroll-mt-20">
-      <h2 className="text-lg font-semibold mb-4">Targeting</h2>
+      <SectionHeading id="targeting" title="Targeting" />
 
       <div className="space-y-4">
         <div className="space-y-1.5">

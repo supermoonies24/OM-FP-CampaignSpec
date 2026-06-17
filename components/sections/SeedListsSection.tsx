@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 
 export interface SeedEntry {
   id?: string;
@@ -37,7 +38,7 @@ export function SeedListsSection({ seeds, onSeedsChange }: SeedListsSectionProps
 
   return (
     <section id="seed-lists" className="scroll-mt-20">
-      <h2 className="text-lg font-semibold mb-4">Test & Seed Lists</h2>
+      <SectionHeading id="seed-lists" title="Test & Seed Lists" />
 
       <div className="grid grid-cols-3 gap-6">
         {COLUMNS.map(({ key, label }) => {

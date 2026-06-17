@@ -10,7 +10,6 @@ import { OverviewSection } from "@/components/sections/OverviewSection";
 import { SpecialInstructionsSection } from "@/components/sections/SpecialInstructionsSection";
 import { TargetingSection } from "@/components/sections/TargetingSection";
 import { OrchestrationSection } from "@/components/sections/OrchestrationSection";
-import { EmailSendsSection } from "@/components/sections/EmailSendsSection";
 import { LinksSection, type LinkRow } from "@/components/sections/LinksSection";
 import { SeedListsSection, type SeedEntry } from "@/components/sections/SeedListsSection";
 import { QASection } from "@/components/sections/QASection";
@@ -297,9 +296,7 @@ export default function CampaignDetailPage() {
             <Separator />
             <TargetingSection form={form} />
             <Separator />
-            <OrchestrationSection form={form} />
-            <Separator />
-            <EmailSendsSection
+            <OrchestrationSection
               form={form}
               sends={sends}
               onSendChange={handleSendChange}

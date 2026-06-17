@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useSettings } from "@/contexts/SettingsContext";
 
 export interface LinkRow {
@@ -87,7 +88,7 @@ export function LinksSection({ numSends, links, onLinksChange }: LinksSectionPro
 
   return (
     <section id="links" className="scroll-mt-20">
-      <h2 className="text-lg font-semibold mb-4">Links & GA Tagging</h2>
+      <SectionHeading id="links" title="Links & GA Tagging" />
 
       <div className="space-y-6">
         {Array.from({ length: numSends }, (_, i) => {

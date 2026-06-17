@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { EmailNameOutput } from "@/components/ui/EmailNameOutput";
 import { ColoredSelect } from "@/components/ui/ColoredSelect";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useSettings } from "@/contexts/SettingsContext";
 import { generateMainEmailName } from "@/lib/emailNameGenerator";
 import { cn } from "@/lib/utils";
@@ -71,41 +72,47 @@ export function OverviewSection({ form }: OverviewSectionProps) {
 
   return (
     <section id="overview" className="scroll-mt-20">
-      <h2 className="text-lg font-semibold mb-4">Campaign Overview</h2>
+      <SectionHeading id="overview" title="Campaign Overview" />
 
-      {/* Prominent # of Sends stepper */}
-      <div className="flex flex-col items-center py-5 mb-6 border rounded-xl bg-muted/20">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+      {/* Prominent # of Sends stepper — front and center */}
+      <div className="flex flex-col items-center py-8 mb-8 border-2 border-blue-200 dark:border-blue-900 rounded-2xl bg-gradient-to-b from-blue-50 to-transparent dark:from-blue-950/30 shadow-sm">
+        <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4">
           Number of Email Sends
         </p>
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-6">
           <button
             type="button"
             onClick={() => setValue("numSends", Math.max(1, numSends - 1), { shouldDirty: true })}
             disabled={numSends <= 1}
             className={cn(
-              "w-9 h-9 rounded-full border-2 flex items-center justify-center text-xl font-bold transition-colors",
-              numSends <= 1 ? "opacity-30 cursor-not-allowed border-border" : "border-border hover:bg-accent"
+              "w-11 h-11 rounded-full border-2 flex items-center justify-center text-2xl font-bold transition-colors",
+              numSends <= 1
+                ? "opacity-30 cursor-not-allowed border-border"
+                : "border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
             )}
           >
             −
           </button>
-          <span className="text-4xl font-bold w-14 text-center tabular-nums">{numSends}</span>
+          <span className="text-6xl font-extrabold w-20 text-center tabular-nums text-blue-600 dark:text-blue-400">
+            {numSends}
+          </span>
           <button
             type="button"
             onClick={() => setValue("numSends", Math.min(10, numSends + 1), { shouldDirty: true })}
             disabled={numSends >= 10}
             className={cn(
-              "w-9 h-9 rounded-full border-2 flex items-center justify-center text-xl font-bold transition-colors",
-              numSends >= 10 ? "opacity-30 cursor-not-allowed border-border" : "border-border hover:bg-accent"
+              "w-11 h-11 rounded-full border-2 flex items-center justify-center text-2xl font-bold transition-colors",
+              numSends >= 10
+                ? "opacity-30 cursor-not-allowed border-border"
+                : "border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
             )}
           >
             +
           </button>
         </div>
         {isMulti && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Per-email details (product line, audience, etc.) are configured in the Email Sends section below
+          <p className="text-xs text-muted-foreground mt-3">
+            Per-email details (product line, audience, etc.) are configured in the Orchestration section below
           </p>
         )}
       </div>
@@ -175,10 +182,6 @@ export function OverviewSection({ form }: OverviewSectionProps) {
                 onValueChange={sel("emailBuildType")}
                 options={settings.dropdown_emailBuildType}
               />
-            </FormField>
-
-            <FormField label="Figma Link">
-              <Input {...register("figmaLink")} placeholder="https://figma.com/…" type="url" />
             </FormField>
 
             <FormField label="Figma File URL">

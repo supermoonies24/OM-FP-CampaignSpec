@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { getSectionColor } from "@/lib/sectionColors";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
   { id: "special-instructions", label: "Special Instructions" },
   { id: "targeting", label: "Targeting" },
   { id: "orchestration", label: "Orchestration" },
-  { id: "email-sends", label: "Email Sends" },
   { id: "links", label: "Links & Tagging" },
   { id: "seed-lists", label: "Seed Lists" },
   { id: "qa", label: "QA & Sign-off" },
@@ -43,10 +43,11 @@ export function SectionNav() {
         <a
           key={id}
           href={`#${id}`}
+          style={active === id ? { color: getSectionColor(id) } : undefined}
           className={cn(
             "text-xs px-2 py-1 rounded transition-colors text-right whitespace-nowrap",
             active === id
-              ? "text-foreground font-medium bg-accent"
+              ? "font-semibold bg-accent"
               : "text-muted-foreground hover:text-foreground"
           )}
         >

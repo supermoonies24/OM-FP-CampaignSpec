@@ -19,7 +19,6 @@ const FIELD_GROUPS: { group: string; fields: { key: string; label: string }[] }[
       { key: "country", label: "Country" },
       { key: "language", label: "Language" },
       { key: "emailBuildType", label: "Email Build Type" },
-      { key: "figmaLink", label: "Figma Link" },
       { key: "figmaFileName", label: "Figma File Name" },
       { key: "campaignName", label: "Campaign Name" },
       { key: "productLine", label: "Product Line" },

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ColoredSelect } from "@/components/ui/ColoredSelect";
 import { EmailNameOutput } from "@/components/ui/EmailNameOutput";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useSettings } from "@/contexts/SettingsContext";
 import { generateContentBlockName } from "@/lib/emailNameGenerator";
 import type { CampaignFormValues } from "@/app/campaigns/[id]/page";
@@ -33,7 +34,7 @@ export function SpecialInstructionsSection({ form }: SpecialInstructionsSectionP
 
   return (
     <section id="special-instructions" className="scroll-mt-20">
-      <h2 className="text-lg font-semibold mb-4">Special Instructions</h2>
+      <SectionHeading id="special-instructions" title="Special Instructions" />
       <div className="grid grid-cols-2 gap-4">
 
         {/* Card 1 — Send Throttle */}
