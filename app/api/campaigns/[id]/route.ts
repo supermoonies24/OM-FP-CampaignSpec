@@ -14,7 +14,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await request.json();
-  const campaign = await prisma.campaign.update({ where: { id }, data: body });
+  // strip relation fields/objects and read-only fields that aren't valid scalar update inputs
+  const { id: _id, createdAt, updatedAt, folder, emailSends, links, seedLists, ...data } = body;
+  const campaign = await prisma.campaign.update({ where: { id }, data });
   return NextResponse.json(campaign);
 }
 
