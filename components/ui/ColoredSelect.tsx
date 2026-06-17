@@ -2,6 +2,7 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 import { getValueColor } from "@/lib/valueColors";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface ColoredSelectProps {
   value: string;
@@ -14,6 +15,7 @@ interface ColoredSelectProps {
 export function ColoredSelect({
   value, onValueChange, options, placeholder = "Select…", className,
 }: ColoredSelectProps) {
+  const { settings } = useSettings();
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger className={className}>
@@ -25,7 +27,7 @@ export function ColoredSelect({
             <span className="flex items-center gap-2">
               <span
                 className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: getValueColor(v) }}
+                style={{ backgroundColor: getValueColor(v, settings.valueColors) }}
               />
               {v}
             </span>
@@ -37,9 +39,10 @@ export function ColoredSelect({
 }
 
 export function ValueChip({ value }: { value: string }) {
+  const { settings } = useSettings();
   return (
     <span className="inline-flex items-center gap-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">
-      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: getValueColor(value) }} />
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: getValueColor(value, settings.valueColors) }} />
       {value}
     </span>
   );

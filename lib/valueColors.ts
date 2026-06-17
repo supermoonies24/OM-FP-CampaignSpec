@@ -14,7 +14,8 @@ function hash(str: string): number {
   return Math.abs(h);
 }
 
-export function getValueColor(value: string): string {
+export function getValueColor(value: string, overrides?: Record<string, string>): string {
   if (!value) return "#94a3b8";
+  if (overrides?.[value]) return overrides[value];
   return COLORS[hash(value) % COLORS.length];
 }

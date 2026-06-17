@@ -33,6 +33,7 @@ const DROPDOWN_DEFS: { key: string; label: string }[] = [
 export default function DropdownSettingsPage() {
   const { settings, updateSetting } = useSettings();
   const [local, setLocal] = useState<Record<string, string[]>>({});
+  const [colors, setColors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -42,13 +43,29 @@ export default function DropdownSettingsPage() {
       init[key] = (settings as unknown as Record<string, string[]>)[key] ?? [];
     }
     setLocal(init);
+    setColors(settings.valueColors ?? {});
   }, [settings]);
+
+  function handleColorChange(value: string, color: string) {
+    setColors((prev) => ({ ...prev, [value]: color }));
+  }
+
+  function handleRename(oldValue: string, newValue: string) {
+    setColors((prev) => {
+      if (!(oldValue in prev)) return prev;
+      const next = { ...prev };
+      next[newValue] = next[oldValue];
+      delete next[oldValue];
+      return next;
+    });
+  }
 
   async function handleSave() {
     setSaving(true);
     for (const [key, value] of Object.entries(local)) {
       await updateSetting(key, value);
     }
+    await updateSetting("valueColors", colors);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -88,7 +105,8 @@ export default function DropdownSettingsPage() {
             <div className="mb-6">
               <h2 className="text-lg font-semibold">Dropdown Values</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Edit, add, remove, or reorder values for every dropdown in the app. Drag items to reorder.
+                Add, remove, reorder, rename, or recolor values for every dropdown in the app. Drag items to reorder,
+                click the pencil to rename, or click the color swatch to change a value&apos;s color.
               </p>
             </div>
 
@@ -99,6 +117,9 @@ export default function DropdownSettingsPage() {
                   label={label}
                   values={local[key] ?? []}
                   onChange={(vals) => setLocal((prev) => ({ ...prev, [key]: vals }))}
+                  colors={colors}
+                  onColorChange={handleColorChange}
+                  onRename={handleRename}
                 />
               ))}
             </div>

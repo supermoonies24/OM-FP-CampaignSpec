@@ -23,6 +23,7 @@ export interface AppSettings {
   dropdown_emailGroupNum: string[];
   dropdown_status: string[];
   requiredFields: Record<string, boolean>;
+  valueColors: Record<string, string>;
 }
 
 const defaultSettings: AppSettings = {
@@ -46,6 +47,7 @@ const defaultSettings: AppSettings = {
   dropdown_emailGroupNum: [],
   dropdown_status: [],
   requiredFields: {},
+  valueColors: {},
 };
 
 interface SettingsContextValue {
