@@ -37,28 +37,7 @@ export function SpecialInstructionsSection({ form }: SpecialInstructionsSectionP
       <SectionHeading id="special-instructions" title="Special Instructions" />
       <div className="grid grid-cols-2 gap-4">
 
-        {/* Card 1 — Send Throttle */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Send Throttle</CardTitle>
-              <Switch
-                checked={values.sendThrottle ?? false}
-                onCheckedChange={(v) => setValue("sendThrottle", v, { shouldDirty: true })}
-              />
-            </div>
-          </CardHeader>
-          {values.sendThrottle && (
-            <CardContent>
-              <div className="space-y-1.5">
-                <Label>Rate?</Label>
-                <Input {...register("sendThrottleRate")} placeholder="e.g. 10,000/hour" />
-              </div>
-            </CardContent>
-          )}
-        </Card>
-
-        {/* Card 2 — A/B Test */}
+        {/* Card 1 — A/B Test */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -91,7 +70,7 @@ export function SpecialInstructionsSection({ form }: SpecialInstructionsSectionP
           )}
         </Card>
 
-        {/* Card 3 — Content Block (full width) */}
+        {/* Card 2 — Content Block (full width) */}
         <Card className="col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -130,7 +109,7 @@ export function SpecialInstructionsSection({ form }: SpecialInstructionsSectionP
           )}
         </Card>
 
-        {/* Card 4 — Notes (full width) */}
+        {/* Card 3 — Notes (full width) */}
         <Card className="col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Notes</CardTitle>

@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSettings } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 
@@ -51,6 +52,7 @@ interface CampaignCardProps {
 }
 
 function CampaignCard({ campaign, isActive, folders, onMoveTo }: CampaignCardProps) {
+  const { colorMap } = useSettings();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
 
@@ -74,7 +76,7 @@ function CampaignCard({ campaign, isActive, folders, onMoveTo }: CampaignCardPro
             </p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <StatusBadge status={campaign.status} />
+            <StatusBadge status={campaign.status} color={colorMap[campaign.status]} />
           </div>
         </div>
       </Link>

@@ -98,11 +98,11 @@ export function OverviewSection({ form }: OverviewSectionProps) {
           </span>
           <button
             type="button"
-            onClick={() => setValue("numSends", Math.min(10, numSends + 1), { shouldDirty: true })}
-            disabled={numSends >= 10}
+            onClick={() => setValue("numSends", Math.min(30, numSends + 1), { shouldDirty: true })}
+            disabled={numSends >= 30}
             className={cn(
               "w-11 h-11 rounded-full border-2 flex items-center justify-center text-2xl font-bold transition-colors",
-              numSends >= 10
+              numSends >= 30
                 ? "opacity-30 cursor-not-allowed border-border"
                 : "border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
             )}

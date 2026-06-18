@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { useSettings } from "@/contexts/SettingsContext";
+import { useSettings, getDefaultDropdownValue, type DropdownValue } from "@/contexts/SettingsContext";
 
 export interface LinkRow {
   id?: string;
@@ -30,7 +30,7 @@ function LinkGroupRow({
   index: number;
   onChange: (field: keyof LinkRow, value: string) => void;
   onDelete: () => void;
-  assetTypes: string[];
+  assetTypes: DropdownValue[];
 }) {
   return (
     <div className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-center">
@@ -43,7 +43,7 @@ function LinkGroupRow({
       <Select value={link.assetType} onValueChange={(v) => onChange("assetType", v)}>
         <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Asset type" /></SelectTrigger>
         <SelectContent>
-          {assetTypes.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+          {assetTypes.map((v) => <SelectItem key={v.value} value={v.value}>{v.value}</SelectItem>)}
         </SelectContent>
       </Select>
       <Input
@@ -74,7 +74,8 @@ export function LinksSection({ numSends, links, onLinksChange }: LinksSectionPro
   const { settings } = useSettings();
 
   function addLink(emailNumber: number) {
-    onLinksChange([...links, { emailNumber, ctaName: "", assetType: "", alias: "", baseUrl: "" }]);
+    const assetType = getDefaultDropdownValue(settings.dropdown_assetType) ?? "";
+    onLinksChange([...links, { emailNumber, ctaName: "", assetType, alias: "", baseUrl: "" }]);
   }
 
   function updateLink(idx: number, field: keyof LinkRow, value: string) {

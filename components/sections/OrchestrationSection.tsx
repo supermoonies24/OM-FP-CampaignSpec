@@ -45,6 +45,7 @@ interface SendCardProps {
 }
 
 function MinimizedCard({ send, index, accent, onToggle }: Pick<SendCardProps, "send" | "index" | "accent" | "onToggle">) {
+  const { colorMap } = useSettings();
   const complete = isEmailComplete(send);
   const summaryValues = [send.productLine, send.audience, send.country].filter(Boolean) as string[];
 
@@ -63,7 +64,7 @@ function MinimizedCard({ send, index, accent, onToggle }: Pick<SendCardProps, "s
         <p className="text-sm text-muted-foreground line-clamp-2">{send.description}</p>
       )}
       <div className="flex flex-col gap-1 mt-1">
-        {summaryValues.map((v) => <ValueChip key={v} value={v} />)}
+        {summaryValues.map((v) => <ValueChip key={v} value={v} color={colorMap[v]} />)}
       </div>
       <span className="text-xs text-muted-foreground mt-auto">Click to expand →</span>
     </button>

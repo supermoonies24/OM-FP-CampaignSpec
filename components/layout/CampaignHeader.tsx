@@ -69,6 +69,7 @@ export function CampaignHeader({
   }
 
   const statusOptions = settings.dropdown_status;
+  const statusColor = statusOptions.find((s) => s.value === status)?.color;
 
   return (
     <header className="sticky top-0 z-30 bg-background border-b px-6 py-3 flex items-center gap-4">
@@ -98,13 +99,13 @@ export function CampaignHeader({
       <Select value={status} onValueChange={onStatusChange}>
         <SelectTrigger className="w-[130px] h-8 text-sm">
           <SelectValue>
-            <StatusBadge status={status} />
+            <StatusBadge status={status} color={statusColor} />
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {statusOptions.map((s) => (
-            <SelectItem key={s} value={s}>
-              <StatusBadge status={s} />
+            <SelectItem key={s.value} value={s.value}>
+              <StatusBadge status={s.value} color={s.color} />
             </SelectItem>
           ))}
         </SelectContent>

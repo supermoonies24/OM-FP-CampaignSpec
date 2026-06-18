@@ -5,7 +5,6 @@ export const SECTION_COLORS: Record<string, string> = {
   orchestration: "#14b8a6",
   links: "#ec4899",
   "seed-lists": "#22c55e",
-  qa: "#64748b",
 };
 
 export function getSectionColor(id: string): string {

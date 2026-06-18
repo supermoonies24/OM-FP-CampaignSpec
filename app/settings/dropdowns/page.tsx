@@ -6,7 +6,7 @@ import { ArrowLeft, Save, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownEditor } from "@/components/settings/DropdownEditor";
-import { useSettings } from "@/contexts/SettingsContext";
+import { useSettings, type DropdownValue } from "@/contexts/SettingsContext";
 
 const DROPDOWN_DEFS: { key: string; label: string }[] = [
   { key: "dropdown_brand", label: "Brand" },
@@ -22,8 +22,8 @@ const DROPDOWN_DEFS: { key: string; label: string }[] = [
   { key: "dropdown_sendFromName", label: "Send From Name" },
   { key: "dropdown_sendFromAddress", label: "Send From Address" },
   { key: "dropdown_audienceSource", label: "Audience Source" },
-  { key: "dropdown_abTestType", label: "A/B Test Type" },
-  { key: "dropdown_abAudienceSplit", label: "A/B Audience Split" },
+  { key: "dropdown_abTestType", label: "Test Type" },
+  { key: "dropdown_abAudienceSplit", label: "Audience Split" },
   { key: "dropdown_assetType", label: "Asset Type (Links)" },
   { key: "dropdown_versionType", label: "Version Type" },
   { key: "dropdown_emailGroupNum", label: "Email Group #" },
@@ -32,14 +32,14 @@ const DROPDOWN_DEFS: { key: string; label: string }[] = [
 
 export default function DropdownSettingsPage() {
   const { settings, updateSetting } = useSettings();
-  const [local, setLocal] = useState<Record<string, string[]>>({});
+  const [local, setLocal] = useState<Record<string, DropdownValue[]>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const init: Record<string, string[]> = {};
+    const init: Record<string, DropdownValue[]> = {};
     for (const { key } of DROPDOWN_DEFS) {
-      init[key] = (settings as unknown as Record<string, string[]>)[key] ?? [];
+      init[key] = (settings as unknown as Record<string, DropdownValue[]>)[key] ?? [];
     }
     setLocal(init);
   }, [settings]);
