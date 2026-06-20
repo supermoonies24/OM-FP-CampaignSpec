@@ -18,6 +18,7 @@ interface Approval { id: string; stage: string; channel: string; approvedBy: str
 interface Comment { id: string; source: string; authorEmail: string; body: string; createdAt: string }
 interface Intake { id: string; submittedBy: string; rawForm: string; createdAt: string }
 interface Assignment { id: string; channel: string; userId: string; role: string }
+interface BriefDeckSummary { id: string; specFormDraft: string; version: number; generatedBy: string }
 
 interface WorkflowCampaignDetail {
   id: string;
@@ -30,6 +31,7 @@ interface WorkflowCampaignDetail {
   createdAt: string;
   updatedAt: string;
   intake: Intake | null;
+  briefDeck: BriefDeckSummary | null;
   assignments: Assignment[];
   stageHistory: StageTransition[];
   approvals: Approval[];
@@ -371,11 +373,21 @@ function SpecFormPanel({ campaign, onChange }: { campaign: WorkflowCampaignDetai
     setBusy(true);
     setError(null);
     try {
-      // Create a new spec-form Campaign, then link it on the WorkflowCampaign.
+      // Seed the spec form with values from the generated brief if it exists.
+      // Falls back to just the campaign name otherwise.
+      let seed: Record<string, unknown> = { campaignName: campaign.name };
+      if (campaign.briefDeck) {
+        try {
+          const draft = JSON.parse(campaign.briefDeck.specFormDraft) as Record<string, unknown>;
+          seed = { ...seed, ...draft };
+        } catch {
+          // ignore malformed draft; fall through with name only
+        }
+      }
       const createRes = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaignName: campaign.name }),
+        body: JSON.stringify(seed),
       });
       if (!createRes.ok) throw new Error(`Create spec form failed: HTTP ${createRes.status}`);
       const specForm = await createRes.json();
@@ -416,7 +428,9 @@ function SpecFormPanel({ campaign, onChange }: { campaign: WorkflowCampaignDetai
         <p className="text-xs text-muted-foreground">Linked: {campaign.specFormId}</p>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Pre-populates a draft when this campaign reaches the Build Spec Form stage; can also be attached now.
+          {campaign.briefDeck
+            ? `Will pre-fill from brief v${campaign.briefDeck.version}.`
+            : "Attaching now creates a blank spec form. Generate a brief first to pre-fill it."}
         </p>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
