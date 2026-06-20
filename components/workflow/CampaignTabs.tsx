@@ -8,6 +8,7 @@ const TABS = [
   { key: "brief", label: "Brief", segment: "/brief" },
   { key: "timeline", label: "Timeline", segment: "/timeline" },
   { key: "comms", label: "Comms", segment: "/comms" },
+  { key: "specForm", label: "Spec Form", segment: "/spec-form" },
 ] as const;
 
 export type TabKey = (typeof TABS)[number]["key"];
