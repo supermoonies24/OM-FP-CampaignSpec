@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, LayoutGrid, List, Search } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { STAGES, STAGE_CONFIG, type Stage } from "@/lib/workflow/stages";
+import { STAGES, STAGE_CONFIG, isValidStage, type Stage } from "@/lib/workflow/stages";
 import { CHANNEL_LABELS } from "@/lib/workflow/channels";
+import { cn } from "@/lib/utils";
 
 interface WorkflowCampaignSummary {
   id: string;
@@ -26,6 +28,8 @@ export default function WorkflowBoardPage() {
   const [campaigns, setCampaigns] = useState<WorkflowCampaignSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"board" | "list">("board");
+  const [search, setSearch] = useState("");
 
   async function load() {
     setLoading(true);
@@ -46,17 +50,25 @@ export default function WorkflowBoardPage() {
     load();
   }, []);
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return campaigns;
+    return campaigns.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.client.toLowerCase().includes(q),
+    );
+  }, [campaigns, search]);
+
   const byStage = useMemo(() => {
     const map = new Map<Stage, WorkflowCampaignSummary[]>();
     for (const s of STAGES) map.set(s, []);
-    for (const c of campaigns) {
+    for (const c of filtered) {
       const stage = (STAGES as readonly string[]).includes(c.currentStage)
         ? (c.currentStage as Stage)
         : STAGES[0];
       map.get(stage)!.push(c);
     }
     return map;
-  }, [campaigns]);
+  }, [filtered]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -71,6 +83,33 @@ export default function WorkflowBoardPage() {
           </p>
         </div>
         <div className="flex-1" />
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search…"
+            className="pl-8 h-8 text-sm w-48"
+          />
+        </div>
+        <div className="flex items-center rounded-md border p-0.5">
+          <button
+            type="button"
+            onClick={() => setView("board")}
+            className={cn("p-1.5 rounded", view === "board" ? "bg-accent" : "text-muted-foreground hover:text-foreground")}
+            title="Board"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            className={cn("p-1.5 rounded", view === "list" ? "bg-accent" : "text-muted-foreground hover:text-foreground")}
+            title="List"
+          >
+            <List className="h-3.5 w-3.5" />
+          </button>
+        </div>
         <Button size="sm" variant="ghost" onClick={load} disabled={loading}>
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
@@ -86,7 +125,9 @@ export default function WorkflowBoardPage() {
         <div className="px-6 py-3 text-sm text-destructive border-b">{error}</div>
       )}
 
-      <ScrollArea className="flex-1">
+      {view === "list" && <ListView campaigns={filtered} />}
+
+      {view === "board" && <ScrollArea className="flex-1">
         <div className="flex gap-3 p-4 min-w-max">
           {STAGES.map((stage) => {
             const config = STAGE_CONFIG[stage];
@@ -127,7 +168,57 @@ export default function WorkflowBoardPage() {
           })}
         </div>
         <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </ScrollArea>}
+    </div>
+  );
+}
+
+function ListView({ campaigns }: { campaigns: WorkflowCampaignSummary[] }) {
+  if (campaigns.length === 0) {
+    return <div className="px-6 py-12 text-sm text-muted-foreground text-center">No campaigns match.</div>;
+  }
+  return (
+    <div className="px-4 py-4">
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="text-left px-4 py-2 font-medium">Name</th>
+              <th className="text-left px-4 py-2 font-medium">Client</th>
+              <th className="text-left px-4 py-2 font-medium">Stage</th>
+              <th className="text-left px-4 py-2 font-medium">Owner</th>
+              <th className="text-right px-4 py-2 font-medium">Updated</th>
+              <th className="text-right px-4 py-2 font-medium">Activity</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {campaigns.map((c) => {
+              const stage = isValidStage(c.currentStage) ? c.currentStage : null;
+              const config = stage ? STAGE_CONFIG[stage] : null;
+              return (
+                <tr key={c.id} className="hover:bg-muted/30">
+                  <td className="px-4 py-2.5">
+                    <Link href={`/workflow/${c.id}`} className="font-medium hover:underline">
+                      {c.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{c.client}</td>
+                  <td className="px-4 py-2.5">{config?.label ?? c.currentStage}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">
+                    {config ? CHANNEL_LABELS[config.ownerChannel] : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
+                    {formatDistanceToNowStrict(new Date(c.updatedAt))} ago
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
+                    {c._count.stageHistory}t · {c._count.approvals}a · {c._count.comments}c
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
