@@ -139,3 +139,142 @@ model AppSettings {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// ── Workflow / Ops Platform (VISION.md §5) ──
+//
+// Phase 0 scaffold. Models are prefixed "Workflow" to avoid collision with the
+// existing CampaignSpec `Campaign` model; a future phase will rename the legacy
+// Campaign → SpecForm and drop the Workflow prefix once the ops side is mature.
+//
+// SQLite-specific choices: string fields hold enum-like values (matching the
+// existing `status: String @default("draft")` convention rather than Prisma
+// enums). Free-form payloads and arrays are stored as JSON-encoded `String`
+// (SQLite + Prisma 5 has no native Json or array types).
+
+model WorkflowCampaign {
+  id              String   @id @default(cuid())
+  name            String
+  client          String   @default("Ford Pro")
+  currentStage    String   @default("INTAKE")   // Stage enum (see lib/workflow/stages.ts)
+  status          String   @default("active")   // active | onHold | cancelled | shipped
+  briefDeckId     String?
+  figmaUrl        String?
+  specFormId      String?  // → existing Campaign.id (the spec form)
+  jiraEpicKey     String?
+  sfmcJourneyId   String?
+  teamsChannelUrl String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deployedAt      DateTime?
+
+  intake        WorkflowIntake?
+  briefDeck     WorkflowBriefDeck?
+  assignments   WorkflowChannelAssignment[]
+  stageHistory  WorkflowStageTransition[]
+  timeline      WorkflowTimelineItem[]
+  approvals     WorkflowApproval[]
+  notifications WorkflowNotification[]
+  comments      WorkflowComment[]
+}
+
+model WorkflowIntake {
+  id             String   @id @default(cuid())
+  campaignId     String   @unique
+  campaign       WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  submittedBy    String   // user id
+  rawForm        String   // JSON: intake form fields
+  clarifications String?  // JSON: array of {question, answer, askedAt}
+  createdAt      DateTime @default(now())
+}
+
+model WorkflowBriefDeck {
+  id               String   @id @default(cuid())
+  campaignId       String   @unique
+  campaign         WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  highLevelJourney String   // JSON
+  sfmcJourney      String   // JSON
+  timeline         String   // JSON
+  specFormDraft    String   // JSON: AI-suggested spec form values
+  generatedBy      String   // "ai" | userId
+  version          Int      @default(1)
+  pptxUrl          String?
+  createdAt        DateTime @default(now())
+}
+
+model WorkflowChannelAssignment {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  channel    String   // Channel enum: FORD_PRO | AUDIENCE | STRATEGY | CREATIVE | DEV_OPS | TECH_DEV
+  userId     String
+  role       String   // owner | contributor | reviewer
+
+  @@unique([campaignId, channel, userId, role])
+}
+
+model WorkflowStageTransition {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  fromStage   String?  // null on first INTAKE
+  toStage     String
+  triggeredBy String   // user id or "system"
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+model WorkflowTimelineItem {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  stage      String
+  targetDate DateTime
+  actualDate DateTime?
+  status     String    @default("onTrack")  // onTrack | atRisk | late | complete
+  riskScore  Float?    // 0..1, AI-generated
+  riskReason String?
+
+  @@index([campaignId, stage])
+}
+
+model WorkflowApproval {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  stage      String
+  channel    String
+  approvedBy String
+  approvedAt DateTime @default(now())
+  notes      String?
+
+  @@index([campaignId, stage])
+}
+
+model WorkflowNotification {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  kind       String   // stageTransition | atRiskAlert | approvalRequested | meetingScheduled
+  recipients String   // JSON: string[] of user ids
+  channel    String   // outlook | inApp | teams
+  payload    String   // JSON
+  sentAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+model WorkflowComment {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  source      String   // inApp | figma | outlook
+  externalId  String?  // figma comment id, email message id
+  authorEmail String
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
