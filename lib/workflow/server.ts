@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { planTransition, type TransitionResult } from "./transitions";
 import { STAGE_CONFIG, type Stage, isValidStage } from "./stages";
+import { recordEntryActions } from "./entryActions";
 
 // Server-side workflow helpers. The state machine itself (lib/workflow/transitions.ts)
 // is pure; this module persists transitions, approvals, and the timeline items
@@ -114,6 +115,7 @@ export async function applyTransition(
       data: { currentStage: to },
     });
     await rollTimeline(tx, campaignId, from, to);
+    await recordEntryActions(tx, campaignId, to);
   });
 
   return plan;
@@ -140,6 +142,7 @@ export async function bootstrapStage(
     },
   });
   await rollTimeline(tx, campaignId, null, toStage);
+  await recordEntryActions(tx, campaignId, toStage);
 }
 
 /**
