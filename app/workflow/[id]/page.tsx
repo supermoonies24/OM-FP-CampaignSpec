@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CampaignTabs } from "@/components/workflow/CampaignTabs";
+import { StageProgress } from "@/components/workflow/StageProgress";
 import { CHANNELS, CHANNEL_LABELS, type Channel } from "@/lib/workflow/channels";
 import { STAGE_CONFIG, STAGES, getNextStage, isValidStage, type Stage } from "@/lib/workflow/stages";
 
@@ -137,6 +138,11 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
 
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
         {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <StageProgress
+          currentStage={campaign.currentStage}
+          completedStages={new Set(campaign.stageHistory.filter((t) => t.toStage !== campaign.currentStage).map((t) => t.toStage))}
+        />
 
         {/* Current stage card */}
         <section className="rounded-lg border bg-card p-5 space-y-4">
