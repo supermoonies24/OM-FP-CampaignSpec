@@ -210,9 +210,31 @@ export default function WorkflowBoardPage() {
         <div className="px-6 py-3 text-sm text-destructive border-b">{error}</div>
       )}
 
-      {view === "list" && <ListView campaigns={filtered} />}
+      {!loading && campaigns.length === 0 && (
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="max-w-sm text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+              <LayoutGrid className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="font-semibold">No campaigns yet</h2>
+              <p className="text-sm text-muted-foreground">
+                Start by submitting an intake. The campaign will land in the first column of the board.
+              </p>
+            </div>
+            <Link href="/intake">
+              <Button size="sm">
+                <Plus className="h-3.5 w-3.5" />
+                Submit first intake
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
-      {view === "board" && <ScrollArea className="flex-1">
+      {campaigns.length > 0 && view === "list" && <ListView campaigns={filtered} />}
+
+      {campaigns.length > 0 && view === "board" && <ScrollArea className="flex-1">
         <div className="flex gap-3 p-4 min-w-max">
           {STAGES.map((stage) => {
             const config = STAGE_CONFIG[stage];
