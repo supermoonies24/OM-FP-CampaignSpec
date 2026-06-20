@@ -2,7 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send, FileText, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send, FileText, ExternalLink, Users, X } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ interface StageTransition { id: string; fromStage: string | null; toStage: strin
 interface Approval { id: string; stage: string; channel: string; approvedBy: string; approvedAt: string; notes: string | null }
 interface Comment { id: string; source: string; authorEmail: string; body: string; createdAt: string }
 interface Intake { id: string; submittedBy: string; rawForm: string; createdAt: string }
+interface Assignment { id: string; channel: string; userId: string; role: string }
 
 interface WorkflowCampaignDetail {
   id: string;
@@ -28,6 +29,7 @@ interface WorkflowCampaignDetail {
   createdAt: string;
   updatedAt: string;
   intake: Intake | null;
+  assignments: Assignment[];
   stageHistory: StageTransition[];
   approvals: Approval[];
   comments: Comment[];
@@ -205,6 +207,9 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
           )}
         </section>
 
+        {/* Team */}
+        <TeamPanel campaign={campaign} onChange={load} />
+
         {/* Spec Form linking */}
         <SpecFormPanel campaign={campaign} onChange={load} />
 
@@ -221,6 +226,134 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
         />
       </div>
     </div>
+  );
+}
+
+function TeamPanel({ campaign, onChange }: { campaign: WorkflowCampaignDetail; onChange: () => void }) {
+  const [channel, setChannel] = useState<Channel>(CHANNELS[2]); // STRATEGY default
+  const [userId, setUserId] = useState("");
+  const [role, setRole] = useState("contributor");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Assignment[]>();
+    for (const a of campaign.assignments) {
+      if (!map.has(a.channel)) map.set(a.channel, []);
+      map.get(a.channel)!.push(a);
+    }
+    return map;
+  }, [campaign.assignments]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${campaign.id}/assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel, userId: userId.trim(), role }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      setUserId("");
+      onChange();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add assignment");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(assignmentId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${campaign.id}/assignments/${assignmentId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      onChange();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to remove");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-lg border bg-card p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <Users className="h-4 w-4 text-muted-foreground" />
+        <h3 className="font-semibold">Team</h3>
+        <span className="text-xs text-muted-foreground">({campaign.assignments.length})</span>
+      </div>
+
+      {campaign.assignments.length > 0 && (
+        <div className="space-y-3">
+          {CHANNELS.map((ch) => {
+            const items = grouped.get(ch) ?? [];
+            if (items.length === 0) return null;
+            return (
+              <div key={ch}>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{CHANNEL_LABELS[ch]}</p>
+                <ul className="mt-1 space-y-1">
+                  {items.map((a) => (
+                    <li key={a.id} className="flex items-center gap-2 text-sm">
+                      <span className="flex-1">{a.userId}</span>
+                      <Badge variant="outline" className="text-[10px]">{a.role}</Badge>
+                      <button
+                        type="button"
+                        onClick={() => remove(a.id)}
+                        disabled={busy}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <form onSubmit={add} className="flex flex-wrap items-end gap-2 pt-2 border-t">
+        <div className="flex-1 min-w-[160px]">
+          <label className="block text-xs text-muted-foreground mb-1">Email / user id</label>
+          <Input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="name@example.com" disabled={busy} />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Channel</label>
+          <select
+            value={channel}
+            onChange={(e) => setChannel(e.target.value as Channel)}
+            disabled={busy}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+          >
+            {CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Role</label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            disabled={busy}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="owner">owner</option>
+            <option value="contributor">contributor</option>
+            <option value="reviewer">reviewer</option>
+          </select>
+        </div>
+        <Button type="submit" size="sm" disabled={busy || !userId.trim()}>Add</Button>
+      </form>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </section>
   );
 }
 
