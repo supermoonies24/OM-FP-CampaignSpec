@@ -130,7 +130,10 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="min-w-0">
-          <h1 className="font-semibold truncate">{campaign.name}</h1>
+          <h1 className="font-semibold truncate flex items-center gap-2">
+            {campaign.name}
+            <CampaignStatusBadge status={campaign.status} />
+          </h1>
           <p className="text-xs text-muted-foreground truncate">{campaign.client}</p>
         </div>
         <div className="flex-1" />
@@ -230,6 +233,9 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
         {/* Spec Form linking */}
         <SpecFormPanel campaign={campaign} onChange={load} />
 
+        {/* Status control */}
+        <StatusPanel campaign={campaign} onChange={load} />
+
         {/* Intake details */}
         {campaign.intake && <IntakePanel intake={campaign.intake} />}
 
@@ -243,6 +249,71 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
         />
       </div>
     </div>
+  );
+}
+
+const STATUS_OPTIONS = ["active", "onHold", "cancelled", "shipped"] as const;
+const STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  onHold: "On Hold",
+  cancelled: "Cancelled",
+  shipped: "Shipped",
+};
+const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+  active: "default",
+  onHold: "outline",
+  cancelled: "destructive",
+  shipped: "secondary",
+};
+
+function CampaignStatusBadge({ status }: { status: string }) {
+  return <Badge variant={STATUS_VARIANTS[status] ?? "outline"}>{STATUS_LABELS[status] ?? status}</Badge>;
+}
+
+function StatusPanel({ campaign, onChange }: { campaign: WorkflowCampaignDetail; onChange: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function setStatus(status: string) {
+    if (status === campaign.status) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${campaign.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      onChange();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Status update failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Status</h3>
+        <CampaignStatusBadge status={campaign.status} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {STATUS_OPTIONS.map((s) => (
+          <Button
+            key={s}
+            size="sm"
+            variant={s === campaign.status ? "default" : "outline"}
+            disabled={busy || s === campaign.status}
+            onClick={() => setStatus(s)}
+          >
+            {STATUS_LABELS[s]}
+          </Button>
+        ))}
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </section>
   );
 }
 
