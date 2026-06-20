@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Plus, Search, Settings, ChevronRight, ChevronDown,
-  CalendarDays, Inbox, LogOut,
+  CalendarDays, Inbox, LogOut, LayoutGrid, FilePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -244,6 +244,20 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-3 py-3 border-t shrink-0 space-y-1">
+        <Link
+          href="/workflow"
+          className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+        >
+          <LayoutGrid className="h-3.5 w-3.5" />
+          Workflow Board
+        </Link>
+        <Link
+          href="/intake"
+          className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+        >
+          <FilePlus className="h-3.5 w-3.5" />
+          New Intake
+        </Link>
         <Link
           href="/settings/dropdowns"
           className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
