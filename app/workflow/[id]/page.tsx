@@ -2,7 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send, FileText, ExternalLink, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send, FileText, ExternalLink, Users, X, Undo2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,18 +62,14 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
 
   useEffect(() => { load(); }, [load]);
 
-  async function advance() {
-    if (!campaign) return;
-    if (!isValidStage(campaign.currentStage)) return;
-    const next = getNextStage(campaign.currentStage as Stage);
-    if (!next) return;
+  async function transition(to: string, notes?: string) {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch(`/api/workflow-campaigns/${id}/transition`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: next }),
+        body: JSON.stringify({ to, notes }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -85,6 +81,12 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
     } finally {
       setBusy(false);
     }
+  }
+
+  function advance() {
+    if (!campaign || !isValidStage(campaign.currentStage)) return;
+    const next = getNextStage(campaign.currentStage as Stage);
+    if (next) transition(next);
   }
 
   async function signOff(channel: Channel) {
@@ -199,20 +201,27 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
             </div>
           )}
 
-          {next && (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">
-                Next: <strong>{STAGE_CONFIG[next].label}</strong>
-              </p>
-              <Button onClick={advance} disabled={!canAdvance || busy}>
-                Advance
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
-          {!next && (
-            <p className="text-sm text-muted-foreground">This is the terminal stage.</p>
-          )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <KickBackPicker
+              currentStage={stage}
+              disabled={busy}
+              onKickBack={(target, notes) => transition(target, notes)}
+            />
+            {next && (
+              <div className="flex items-center gap-3 ml-auto">
+                <p className="text-sm text-muted-foreground">
+                  Next: <strong>{STAGE_CONFIG[next].label}</strong>
+                </p>
+                <Button onClick={advance} disabled={!canAdvance || busy}>
+                  Advance
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+            {!next && (
+              <p className="text-sm text-muted-foreground ml-auto">This is the terminal stage.</p>
+            )}
+          </div>
         </section>
 
         {/* Team */}
@@ -233,6 +242,66 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
           comments={campaign.comments}
         />
       </div>
+    </div>
+  );
+}
+
+function KickBackPicker({
+  currentStage,
+  disabled,
+  onKickBack,
+}: {
+  currentStage: Stage | null;
+  disabled: boolean;
+  onKickBack: (target: string, notes: string) => void;
+}) {
+  const [target, setTarget] = useState("");
+  const [notes, setNotes] = useState("");
+  const earlier = useMemo(() => {
+    if (!currentStage) return [] as Stage[];
+    const idx = STAGES.indexOf(currentStage);
+    return STAGES.slice(0, idx);
+  }, [currentStage]);
+
+  if (earlier.length === 0) return <div />;
+
+  return (
+    <div className="flex items-end gap-2">
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">Kick back to</label>
+        <select
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          disabled={disabled}
+          className="h-9 rounded-md border bg-background px-2 text-sm"
+        >
+          <option value="">— stage —</option>
+          {earlier.map((s) => (
+            <option key={s} value={s}>{STAGE_CONFIG[s].label}</option>
+          ))}
+        </select>
+      </div>
+      <Input
+        placeholder="Reason (optional)"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        disabled={disabled}
+        className="h-9 w-56"
+      />
+      <Button
+        variant="outline"
+        disabled={disabled || !target}
+        onClick={() => {
+          if (target) {
+            onKickBack(target, notes);
+            setTarget("");
+            setNotes("");
+          }
+        }}
+      >
+        <Undo2 className="h-3.5 w-3.5" />
+        Send back
+      </Button>
     </div>
   );
 }
