@@ -102,6 +102,10 @@ export function SpecialInstructionsSection({ form }: SpecialInstructionsSectionP
                 label="Generated Content Block Name"
               />
               <div className="space-y-1.5">
+                <Label>Figma Link URL</Label>
+                <Input {...register("contentBlockFigmaLink")} placeholder="https://figma.com/file/…" type="url" />
+              </div>
+              <div className="space-y-1.5">
                 <Label>Description</Label>
                 <Textarea {...register("contentBlockDesc")} placeholder="Describe the content block…" rows={3} />
               </div>

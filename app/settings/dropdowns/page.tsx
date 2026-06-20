@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownEditor } from "@/components/settings/DropdownEditor";
 import { useSettings, type DropdownValue } from "@/contexts/SettingsContext";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 
 const DROPDOWN_DEFS: { key: string; label: string }[] = [
   { key: "dropdown_brand", label: "Brand" },
@@ -35,6 +36,8 @@ export default function DropdownSettingsPage() {
   const [local, setLocal] = useState<Record<string, DropdownValue[]>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const confirmLeave = useUnsavedChangesWarning(dirty);
 
   useEffect(() => {
     const init: Record<string, DropdownValue[]> = {};
@@ -44,6 +47,11 @@ export default function DropdownSettingsPage() {
     setLocal(init);
   }, [settings]);
 
+  function handleChange(key: string, vals: DropdownValue[]) {
+    setLocal((prev) => ({ ...prev, [key]: vals }));
+    setDirty(true);
+  }
+
   async function handleSave() {
     setSaving(true);
     for (const [key, value] of Object.entries(local)) {
@@ -51,13 +59,18 @@ export default function DropdownSettingsPage() {
     }
     setSaving(false);
     setSaved(true);
+    setDirty(false);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  function guardedNavClick(e: React.MouseEvent) {
+    if (!confirmLeave()) e.preventDefault();
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="border-b px-6 py-4 flex items-center gap-4">
-        <Link href="/campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
+      <div className="sticky top-0 z-20 border-b px-6 py-4 flex items-center gap-4 bg-background">
+        <Link href="/campaigns" onClick={guardedNavClick} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex items-center gap-2">
@@ -78,7 +91,7 @@ export default function DropdownSettingsPage() {
             <Link href="/settings/dropdowns" className="flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-accent font-medium">
               Dropdown Values
             </Link>
-            <Link href="/settings/required-fields" className="flex items-center gap-2 text-sm px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+            <Link href="/settings/required-fields" onClick={guardedNavClick} className="flex items-center gap-2 text-sm px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
               Required Fields
             </Link>
           </nav>
@@ -98,7 +111,7 @@ export default function DropdownSettingsPage() {
                   key={key}
                   label={label}
                   values={local[key] ?? []}
-                  onChange={(vals) => setLocal((prev) => ({ ...prev, [key]: vals }))}
+                  onChange={(vals) => handleChange(key, vals)}
                 />
               ))}
             </div>

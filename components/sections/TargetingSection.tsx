@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronRight, ChevronDown, Plus } from "lucide-react";
 import { UseFormReturn, useWatch } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ColoredSelect } from "@/components/ui/ColoredSelect";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -14,17 +18,48 @@ interface TargetingSectionProps {
   form: UseFormReturn<CampaignFormValues>;
 }
 
+const MAX_SEGMENTS = 10;
+
+function segmentFields(n: number) {
+  return {
+    field: `seg${n}Field` as keyof CampaignFormValues,
+    condition: `seg${n}Condition` as keyof CampaignFormValues,
+    value: `seg${n}Value` as keyof CampaignFormValues,
+  };
+}
+
+// A segment counts as "filled" if any of its three sub-fields has data. Used to figure out
+// how many segment rows to show on load, since the count itself isn't a persisted field.
+function countFilledSegments(values: Partial<CampaignFormValues>): number {
+  for (let n = MAX_SEGMENTS; n >= 1; n--) {
+    const { field, condition, value } = segmentFields(n);
+    if (values[field] || values[condition] || values[value]) return n;
+  }
+  return 1;
+}
+
 export function TargetingSection({ form }: TargetingSectionProps) {
   const { settings } = useSettings();
-  const { register, setValue, control } = form;
+  const { register, setValue, control, getValues } = form;
   const values = useWatch({ control });
 
-  const segments = [
-    { label: "Segment 1", field: "seg1Field" as const, condition: "seg1Condition" as const, value: "seg1Value" as const },
-    { label: "Segment 2", field: "seg2Field" as const, condition: "seg2Condition" as const, value: "seg2Value" as const },
-    { label: "Segment 3", field: "seg3Field" as const, condition: "seg3Condition" as const, value: "seg3Value" as const },
-    { label: "Segment 4", field: "seg4Field" as const, condition: "seg4Condition" as const, value: "seg4Value" as const },
-  ];
+  const [segmentCount, setSegmentCount] = useState(() => countFilledSegments(getValues()));
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  function toggleExpanded(n: number) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(n)) next.delete(n);
+      else next.add(n);
+      return next;
+    });
+  }
+
+  function addSegment() {
+    const next = Math.min(MAX_SEGMENTS, segmentCount + 1);
+    setSegmentCount(next);
+    setExpanded((prev) => new Set(prev).add(next));
+  }
 
   return (
     <section id="targeting" className="scroll-mt-20">
@@ -47,28 +82,59 @@ export function TargetingSection({ form }: TargetingSectionProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {segments.map(({ label, field, condition, value }) => (
-            <Card key={label}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">{label}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Field Name</Label>
-                  <Input {...register(field)} placeholder="e.g. Fleet_Size" className="h-8 text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Condition</Label>
-                  <Input {...register(condition)} placeholder="e.g. equals, contains" className="h-8 text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Value</Label>
-                  <Input {...register(value)} placeholder="e.g. Large" className="h-8 text-sm" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="space-y-1.5">
+          <Label>Segments</Label>
+          <div className="space-y-2">
+            {Array.from({ length: segmentCount }, (_, i) => i + 1).map((n) => {
+              const { field, condition, value } = segmentFields(n);
+              const isOpen = expanded.has(n);
+              const preview = [values[field], values[condition], values[value]].filter(Boolean).join(" · ");
+              const isLast = n === segmentCount;
+
+              return (
+                <Collapsible key={n} open={isOpen} onOpenChange={() => toggleExpanded(n)}>
+                  <Card>
+                    <div className="flex items-center gap-2 px-4 py-2.5">
+                      <CollapsibleTrigger asChild>
+                        <button type="button" className="flex-1 flex items-center gap-2 text-left min-w-0">
+                          {isOpen
+                            ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                          <span className="text-sm truncate">
+                            {preview || <span className="text-muted-foreground">Empty segment</span>}
+                          </span>
+                        </button>
+                      </CollapsibleTrigger>
+                      {isLast && segmentCount < MAX_SEGMENTS && (
+                        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={addSegment}>
+                          <Plus className="h-3.5 w-3.5" />
+                          Add Segment
+                        </Button>
+                      )}
+                    </div>
+                    <CollapsibleContent>
+                      <CardContent className="pt-0">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Field Name</Label>
+                            <Input {...register(field)} placeholder="e.g. Fleet_Size" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Condition</Label>
+                            <Input {...register(condition)} placeholder="e.g. equals, contains" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Value</Label>
+                            <Input {...register(value)} placeholder="e.g. Large" className="h-8 text-sm" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              );
+            })}
+          </div>
         </div>
 
         <div className="space-y-1.5">

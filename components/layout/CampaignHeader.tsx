@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Trash2, Copy, ExternalLink, Clock } from "lucide-react";
+import { Save, Trash2, Copy, ExternalLink, Clock, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -10,6 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSettings } from "@/contexts/SettingsContext";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { buildCampaignExportCsv, downloadCampaignExport } from "@/lib/campaignExport";
+import type { CampaignFormValues, EmailSendFormValues } from "@/app/campaigns/[id]/page";
+import type { LinkRow } from "@/components/sections/LinksSection";
+import type { SeedEntry } from "@/components/sections/SeedListsSection";
 
 interface CampaignHeaderProps {
   id: string;
@@ -18,13 +22,17 @@ interface CampaignHeaderProps {
   miroUrl: string | null;
   lastSaved: Date | null;
   isDirty: boolean;
+  values: CampaignFormValues;
+  sends: EmailSendFormValues[];
+  links: LinkRow[];
+  seeds: SeedEntry[];
   onSave: () => Promise<void>;
   onNameChange: (name: string) => void;
   onStatusChange: (status: string) => void;
 }
 
 export function CampaignHeader({
-  id, campaignName, status, miroUrl, lastSaved, isDirty,
+  id, campaignName, status, miroUrl, lastSaved, isDirty, values, sends, links, seeds,
   onSave, onNameChange, onStatusChange,
 }: CampaignHeaderProps) {
   const router = useRouter();
@@ -66,6 +74,11 @@ export function CampaignHeader({
   function commitName() {
     setEditingName(false);
     onNameChange(nameValue);
+  }
+
+  function handleExport() {
+    const csv = buildCampaignExportCsv(values, sends, links, seeds);
+    downloadCampaignExport(campaignName, csv);
   }
 
   const statusOptions = settings.dropdown_status;
@@ -134,6 +147,10 @@ export function CampaignHeader({
         <Button variant="outline" size="sm" onClick={handleDuplicate}>
           <Copy className="h-3.5 w-3.5" />
           Duplicate
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExport}>
+          <Download className="h-3.5 w-3.5" />
+          Export CSV
         </Button>
         <Button size="sm" onClick={handleSave} disabled={saving}>
           <Save className="h-3.5 w-3.5" />

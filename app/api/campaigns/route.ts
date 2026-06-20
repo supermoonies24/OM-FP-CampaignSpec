@@ -5,7 +5,6 @@ export async function GET() {
   const campaigns = await prisma.campaign.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      folder: { select: { id: true, name: true } },
       _count: { select: { emailSends: true } },
     },
   });

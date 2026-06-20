@@ -6,7 +6,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   const original = await prisma.campaign.findUnique({ where: { id } });
   if (!original) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const { id: _id, createdAt: _c, updatedAt: _u, folderId: _f, ...fields } = original;
+  const { id: _id, createdAt: _c, updatedAt: _u, ...fields } = original;
   const copy = await prisma.campaign.create({
     data: {
       ...fields,

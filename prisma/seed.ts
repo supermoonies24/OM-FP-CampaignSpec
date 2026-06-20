@@ -79,7 +79,7 @@ const DEFAULT_SETTINGS: Record<string, string[]> = {
   dropdown_abAudienceSplit: ["50:50", "10:10:80"],
   dropdown_assetType: ["button", "text", "banner", "image", "other"],
   dropdown_versionType: ["No", "Control Version", "Test Version", "3", "4", "5"],
-  dropdown_emailGroupNum: Array.from({ length: 18 }, (_, i) => String(i + 1)),
+  dropdown_emailGroupNum: Array.from({ length: 30 }, (_, i) => String(i + 1)),
   dropdown_status: ["draft", "in_review", "approved", "sent"],
 };
 

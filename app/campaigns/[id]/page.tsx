@@ -65,6 +65,7 @@ export interface CampaignFormValues {
   contentBlockProductName?: string;
   contentBlockName?: string;
   contentBlockDesc?: string;
+  contentBlockFigmaLink?: string;
   notes?: string;
   segmentationDesc?: string;
   audienceSource?: string;
@@ -80,6 +81,24 @@ export interface CampaignFormValues {
   seg4Field?: string;
   seg4Condition?: string;
   seg4Value?: string;
+  seg5Field?: string;
+  seg5Condition?: string;
+  seg5Value?: string;
+  seg6Field?: string;
+  seg6Condition?: string;
+  seg6Value?: string;
+  seg7Field?: string;
+  seg7Condition?: string;
+  seg7Value?: string;
+  seg8Field?: string;
+  seg8Condition?: string;
+  seg8Value?: string;
+  seg9Field?: string;
+  seg9Condition?: string;
+  seg9Value?: string;
+  seg10Field?: string;
+  seg10Condition?: string;
+  seg10Value?: string;
   engagementSplits?: string;
   orchestrationDesc?: string;
 }
@@ -343,6 +362,10 @@ export default function CampaignDetailPage() {
           miroUrl={values.miroUrl ?? null}
           lastSaved={lastSaved}
           isDirty={isDirty}
+          values={values}
+          sends={sends}
+          links={links}
+          seeds={seeds}
           onSave={save}
           onNameChange={(name) => { setValue("campaignName", name, { shouldDirty: true }); }}
           onStatusChange={(s) => { setValue("status", s, { shouldDirty: true }); }}

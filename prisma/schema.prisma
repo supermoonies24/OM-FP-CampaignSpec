@@ -7,24 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Folder {
-  id        String   @id @default(cuid())
-  name      String
-  parentId  String?
-  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Folder[] @relation("FolderTree")
-  campaigns Campaign[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 model Campaign {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  folderId  String?
-  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   // Section 1 — Overview
   weekOf          String?
@@ -62,6 +48,7 @@ model Campaign {
   contentBlockProductName String?
   contentBlockName        String?
   contentBlockDesc        String?
+  contentBlockFigmaLink   String?
   notes                   String?
 
   // Section 3 — Targeting
@@ -79,6 +66,24 @@ model Campaign {
   seg4Field        String?
   seg4Condition    String?
   seg4Value        String?
+  seg5Field        String?
+  seg5Condition    String?
+  seg5Value        String?
+  seg6Field        String?
+  seg6Condition    String?
+  seg6Value        String?
+  seg7Field        String?
+  seg7Condition    String?
+  seg7Value        String?
+  seg8Field        String?
+  seg8Condition    String?
+  seg8Value        String?
+  seg9Field        String?
+  seg9Condition    String?
+  seg9Value        String?
+  seg10Field       String?
+  seg10Condition   String?
+  seg10Value       String?
   engagementSplits String?
 
   // Section 4 — Orchestration
