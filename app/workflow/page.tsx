@@ -108,6 +108,21 @@ export default function WorkflowBoardPage() {
     load();
   }, []);
 
+  const stats = useMemo(() => {
+    let active = 0, late = 0, atRisk = 0, shipped = 0, cancelled = 0;
+    for (const c of campaigns) {
+      if (c.status === "shipped") shipped++;
+      else if (c.status === "cancelled") cancelled++;
+      else {
+        active++;
+        const open = c.timeline[0];
+        if (open?.status === "late") late++;
+        else if (open?.status === "atRisk") atRisk++;
+      }
+    }
+    return { active, late, atRisk, shipped, cancelled };
+  }, [campaigns]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return campaigns.filter((c) => {
@@ -137,8 +152,11 @@ export default function WorkflowBoardPage() {
         </Link>
         <div>
           <h1 className="font-semibold">Workflow Board</h1>
-          <p className="text-xs text-muted-foreground">
-            {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"} · 21 stages
+          <p className="text-xs text-muted-foreground flex items-center gap-2">
+            <span>{stats.active} active</span>
+            {stats.late > 0 && <span className="text-red-600">· {stats.late} late</span>}
+            {stats.atRisk > 0 && <span className="text-amber-600">· {stats.atRisk} at risk</span>}
+            <span>· {stats.shipped + stats.cancelled} closed</span>
           </p>
         </div>
         <div className="flex-1" />
