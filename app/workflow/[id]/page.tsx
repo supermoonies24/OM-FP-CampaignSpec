@@ -83,10 +83,14 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
     }
   }
 
+  const [advanceNotes, setAdvanceNotes] = useState("");
   function advance() {
     if (!campaign || !isValidStage(campaign.currentStage)) return;
     const next = getNextStage(campaign.currentStage as Stage);
-    if (next) transition(next);
+    if (next) {
+      transition(next, advanceNotes.trim() || undefined);
+      setAdvanceNotes("");
+    }
   }
 
   async function signOff(channel: Channel) {
@@ -211,14 +215,26 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
               onKickBack={(target, notes) => transition(target, notes)}
             />
             {next && (
-              <div className="flex items-center gap-3 ml-auto">
-                <p className="text-sm text-muted-foreground">
-                  Next: <strong>{STAGE_CONFIG[next].label}</strong>
-                </p>
-                <Button onClick={advance} disabled={!canAdvance || busy}>
-                  Advance
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
+              <div className="flex flex-wrap items-end gap-3 ml-auto">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Notes (optional)</label>
+                  <Input
+                    value={advanceNotes}
+                    onChange={(e) => setAdvanceNotes(e.target.value)}
+                    placeholder="e.g. approved on Slack thread"
+                    disabled={busy}
+                    className="h-9 w-56"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    Next: <strong>{STAGE_CONFIG[next].label}</strong>
+                  </p>
+                  <Button onClick={advance} disabled={!canAdvance || busy}>
+                    Advance
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             )}
             {!next && (
