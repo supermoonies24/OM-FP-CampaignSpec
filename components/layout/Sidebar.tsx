@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Plus, Search, Settings, ChevronRight, ChevronDown,
-  CalendarDays, Inbox, LogOut, LayoutGrid, FilePlus, Users,
+  CalendarDays, Inbox, LogOut, LayoutGrid, FilePlus, Users, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -264,6 +264,13 @@ export function Sidebar() {
         >
           <Users className="h-3.5 w-3.5" />
           Channel Roster
+        </Link>
+        <Link
+          href="/admin/templates"
+          className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Brief Library
         </Link>
         <Link
           href="/settings/dropdowns"
