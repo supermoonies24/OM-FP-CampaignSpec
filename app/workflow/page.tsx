@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, RefreshCw, LayoutGrid, List, Search } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, LayoutGrid, List, Search, Activity } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,19 @@ export default function WorkflowBoardPage() {
     }
   }
 
+  async function scoreAll() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/workflow-campaigns/score-risk", { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Risk scoring failed");
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     load();
   }, []);
@@ -138,6 +151,10 @@ export default function WorkflowBoardPage() {
             <List className="h-3.5 w-3.5" />
           </button>
         </div>
+        <Button size="sm" variant="outline" onClick={scoreAll} disabled={loading} title="Recompute risk for every open timeline item">
+          <Activity className="h-3.5 w-3.5" />
+          Score risk
+        </Button>
         <Button size="sm" variant="ghost" onClick={load} disabled={loading}>
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
