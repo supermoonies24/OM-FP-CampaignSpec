@@ -2,7 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send, FileText, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -205,6 +205,9 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
           )}
         </section>
 
+        {/* Spec Form linking */}
+        <SpecFormPanel campaign={campaign} onChange={load} />
+
         {/* Intake details */}
         {campaign.intake && <IntakePanel intake={campaign.intake} />}
 
@@ -218,6 +221,67 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
         />
       </div>
     </div>
+  );
+}
+
+function SpecFormPanel({ campaign, onChange }: { campaign: WorkflowCampaignDetail; onChange: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function attach() {
+    setBusy(true);
+    setError(null);
+    try {
+      // Create a new spec-form Campaign, then link it on the WorkflowCampaign.
+      const createRes = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignName: campaign.name }),
+      });
+      if (!createRes.ok) throw new Error(`Create spec form failed: HTTP ${createRes.status}`);
+      const specForm = await createRes.json();
+
+      const patchRes = await fetch(`/api/workflow-campaigns/${campaign.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ specFormId: specForm.id }),
+      });
+      if (!patchRes.ok) throw new Error(`Link spec form failed: HTTP ${patchRes.status}`);
+      onChange();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to attach spec form");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <h3 className="font-semibold">Spec Form</h3>
+        </div>
+        {campaign.specFormId ? (
+          <Link href={`/campaigns/${campaign.specFormId}`} className="text-sm text-primary inline-flex items-center gap-1 hover:underline">
+            Open spec form
+            <ExternalLink className="h-3 w-3" />
+          </Link>
+        ) : (
+          <Button size="sm" variant="outline" onClick={attach} disabled={busy}>
+            {busy ? "Attaching…" : "Attach new spec form"}
+          </Button>
+        )}
+      </div>
+      {campaign.specFormId ? (
+        <p className="text-xs text-muted-foreground">Linked: {campaign.specFormId}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Pre-populates a draft when this campaign reaches the Build Spec Form stage; can also be attached now.
+        </p>
+      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </section>
   );
 }
 
