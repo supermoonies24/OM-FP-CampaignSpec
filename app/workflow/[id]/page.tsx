@@ -2,10 +2,12 @@
 
 import { Fragment, use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { CHANNELS, CHANNEL_LABELS, type Channel } from "@/lib/workflow/channels";
 import { STAGE_CONFIG, STAGES, getNextStage, isValidStage, type Stage } from "@/lib/workflow/stages";
 
@@ -204,6 +206,8 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
         {/* Intake details */}
         {campaign.intake && <IntakePanel intake={campaign.intake} />}
 
+        <CommentComposer campaignId={campaign.id} onPosted={load} />
+
         {/* Activity log */}
         <ActivityLog
           transitions={campaign.stageHistory}
@@ -317,4 +321,63 @@ function ActivityLog({ transitions, approvals, comments }: ActivityLogProps) {
 
 function stageLabel(stage: string): string {
   return isValidStage(stage) ? STAGE_CONFIG[stage].label : stage;
+}
+
+function CommentComposer({ campaignId, onPosted }: { campaignId: string; onPosted: () => void }) {
+  const [author, setAuthor] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!author.trim() || !body.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${campaignId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authorEmail: author.trim(), body }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      setBody("");
+      onPosted();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to post comment");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="rounded-lg border bg-card p-5 space-y-3">
+      <h3 className="font-semibold">Add comment</h3>
+      <div className="grid grid-cols-[200px_1fr] gap-3">
+        <Input
+          placeholder="your.name@email"
+          value={author}
+          onChange={(e) => setAuthor(e.target.value)}
+          disabled={busy}
+        />
+        <Textarea
+          placeholder="Write a comment…"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          disabled={busy}
+          rows={2}
+        />
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex justify-end">
+        <Button type="submit" size="sm" disabled={busy || !author.trim() || !body.trim()}>
+          <Send className="h-3.5 w-3.5" />
+          Post
+        </Button>
+      </div>
+    </form>
+  );
 }
