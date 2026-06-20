@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getActorId } from "@/lib/workflow/server";
+import { bootstrapStage } from "@/lib/workflow/server";
 import { STAGES } from "@/lib/workflow/stages";
 
 interface IntakeBody {
@@ -41,14 +41,9 @@ export async function POST(request: NextRequest) {
         rawForm: JSON.stringify(rawForm),
       },
     });
-    await tx.workflowStageTransition.create({
-      data: {
-        campaignId: created.id,
-        fromStage: null,
-        toStage: initialStage,
-        triggeredBy: submittedBy,
-        notes: "Intake submitted",
-      },
+    await bootstrapStage(tx, created.id, initialStage, {
+      actorId: submittedBy,
+      notes: "Intake submitted",
     });
     return created;
   });

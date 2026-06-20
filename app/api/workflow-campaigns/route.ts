@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getActorId } from "@/lib/workflow/server";
+import { bootstrapStage, getActorId } from "@/lib/workflow/server";
 import { STAGES } from "@/lib/workflow/stages";
 
 export async function GET() {
@@ -33,14 +33,9 @@ export async function POST(request: NextRequest) {
         figmaUrl: figmaUrl ?? null,
       },
     });
-    await tx.workflowStageTransition.create({
-      data: {
-        campaignId: created.id,
-        fromStage: null,
-        toStage: initialStage,
-        triggeredBy: getActorId(),
-        notes: "Campaign created",
-      },
+    await bootstrapStage(tx, created.id, initialStage, {
+      actorId: getActorId(),
+      notes: "Campaign created",
     });
     return created;
   });
