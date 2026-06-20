@@ -101,7 +101,7 @@ export default function DropdownSettingsPage() {
             <div className="mb-6">
               <h2 className="text-lg font-semibold">Dropdown Values</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Edit, add, remove, or reorder values for every dropdown in the app. Drag items to reorder.
+                Click a value to rename it, click the color dot to recolor, click the star to mark a default, or drag to reorder.
               </p>
             </div>
 
