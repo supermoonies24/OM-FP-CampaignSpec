@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, RefreshCw, LayoutGrid, List, Search, Activity } from "
 import { formatDistanceToNowStrict } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { STAGES, STAGE_CONFIG, isValidStage, type Stage } from "@/lib/workflow/stages";
 import { CHANNEL_LABELS } from "@/lib/workflow/channels";
@@ -41,6 +42,21 @@ const STATUS_DOT: Record<string, string> = {
   late: "bg-red-500",
 };
 
+const STATUS_CHIP_LABELS: Record<string, string> = {
+  onHold: "Hold",
+  cancelled: "Cancelled",
+  shipped: "Shipped",
+};
+const STATUS_CHIP_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+  onHold: "outline",
+  cancelled: "destructive",
+  shipped: "secondary",
+};
+
+function StatusChip({ status }: { status: string }) {
+  return <Badge variant={STATUS_CHIP_VARIANTS[status] ?? "outline"} className="text-[9px]">{STATUS_CHIP_LABELS[status] ?? status}</Badge>;
+}
+
 function RiskDot({ campaign }: { campaign: WorkflowCampaignSummary }) {
   const open = campaign.timeline[0];
   if (!open) return null;
@@ -58,6 +74,7 @@ export default function WorkflowBoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"board" | "list">("board");
   const [search, setSearch] = useState("");
+  const [hideClosed, setHideClosed] = useState(true);
 
   async function load() {
     setLoading(true);
@@ -93,11 +110,12 @@ export default function WorkflowBoardPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return campaigns;
-    return campaigns.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.client.toLowerCase().includes(q),
-    );
-  }, [campaigns, search]);
+    return campaigns.filter((c) => {
+      if (hideClosed && (c.status === "cancelled" || c.status === "shipped")) return false;
+      if (!q) return true;
+      return c.name.toLowerCase().includes(q) || c.client.toLowerCase().includes(q);
+    });
+  }, [campaigns, search, hideClosed]);
 
   const byStage = useMemo(() => {
     const map = new Map<Stage, WorkflowCampaignSummary[]>();
@@ -133,6 +151,10 @@ export default function WorkflowBoardPage() {
             className="pl-8 h-8 text-sm w-48"
           />
         </div>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+          <input type="checkbox" checked={hideClosed} onChange={(e) => setHideClosed(e.target.checked)} />
+          Hide closed
+        </label>
         <div className="flex items-center rounded-md border p-0.5">
           <button
             type="button"
@@ -201,6 +223,7 @@ export default function WorkflowBoardPage() {
                       <div className="flex items-center gap-2">
                         <RiskDot campaign={c} />
                         <p className="text-sm font-medium leading-tight truncate flex-1">{c.name}</p>
+                        {c.status !== "active" && <StatusChip status={c.status} />}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{c.client}</p>
                       <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
