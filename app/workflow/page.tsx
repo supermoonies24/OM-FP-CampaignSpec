@@ -11,6 +11,15 @@ import { STAGES, STAGE_CONFIG, isValidStage, type Stage } from "@/lib/workflow/s
 import { CHANNEL_LABELS } from "@/lib/workflow/channels";
 import { cn } from "@/lib/utils";
 
+interface OpenTimelineItem {
+  id: string;
+  stage: string;
+  targetDate: string;
+  status: string;
+  riskScore: number | null;
+  riskReason: string | null;
+}
+
 interface WorkflowCampaignSummary {
   id: string;
   name: string;
@@ -21,7 +30,26 @@ interface WorkflowCampaignSummary {
   createdAt: string;
   figmaUrl: string | null;
   specFormId: string | null;
+  timeline: OpenTimelineItem[];
   _count: { stageHistory: number; approvals: number; comments: number };
+}
+
+const STATUS_DOT: Record<string, string> = {
+  complete: "bg-muted",
+  onTrack: "bg-green-500",
+  atRisk: "bg-amber-500",
+  late: "bg-red-500",
+};
+
+function RiskDot({ campaign }: { campaign: WorkflowCampaignSummary }) {
+  const open = campaign.timeline[0];
+  if (!open) return null;
+  return (
+    <span
+      className={`inline-block w-2 h-2 rounded-full ${STATUS_DOT[open.status] ?? "bg-muted"}`}
+      title={open.riskReason ? `${open.status} · ${open.riskReason}` : open.status}
+    />
+  );
 }
 
 export default function WorkflowBoardPage() {
@@ -153,7 +181,10 @@ export default function WorkflowBoardPage() {
                       href={`/workflow/${c.id}`}
                       className="block rounded-md border bg-card hover:border-foreground/20 hover:shadow-sm transition px-3 py-2.5"
                     >
-                      <p className="text-sm font-medium leading-tight truncate">{c.name}</p>
+                      <div className="flex items-center gap-2">
+                        <RiskDot campaign={c} />
+                        <p className="text-sm font-medium leading-tight truncate flex-1">{c.name}</p>
+                      </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{c.client}</p>
                       <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
                         <span title="Last updated">{formatDistanceToNowStrict(new Date(c.updatedAt))} ago</span>
@@ -198,7 +229,8 @@ function ListView({ campaigns }: { campaigns: WorkflowCampaignSummary[] }) {
               return (
                 <tr key={c.id} className="hover:bg-muted/30">
                   <td className="px-4 py-2.5">
-                    <Link href={`/workflow/${c.id}`} className="font-medium hover:underline">
+                    <Link href={`/workflow/${c.id}`} className="font-medium hover:underline inline-flex items-center gap-2">
+                      <RiskDot campaign={c} />
                       {c.name}
                     </Link>
                   </td>

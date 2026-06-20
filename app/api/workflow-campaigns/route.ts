@@ -8,6 +8,13 @@ export async function GET() {
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { stageHistory: true, approvals: true, comments: true } },
+      // The single open TimelineItem (the one for the campaign's current
+      // stage). Used by board/list to render a per-card risk dot.
+      timeline: {
+        where: { actualDate: null },
+        orderBy: { targetDate: "asc" },
+        take: 1,
+      },
     },
   });
   return NextResponse.json(campaigns);
