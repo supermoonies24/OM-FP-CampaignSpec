@@ -1,16 +1,320 @@
-import { PhasePlaceholder } from "@/components/workflow/PhasePlaceholder";
+"use client";
 
-export default async function WorkflowCampaignOverview({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+import { Fragment, use, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { CHANNELS, CHANNEL_LABELS, type Channel } from "@/lib/workflow/channels";
+import { STAGE_CONFIG, STAGES, getNextStage, isValidStage, type Stage } from "@/lib/workflow/stages";
+
+interface StageTransition { id: string; fromStage: string | null; toStage: string; triggeredBy: string; notes: string | null; createdAt: string }
+interface Approval { id: string; stage: string; channel: string; approvedBy: string; approvedAt: string; notes: string | null }
+interface Comment { id: string; source: string; authorEmail: string; body: string; createdAt: string }
+interface Intake { id: string; submittedBy: string; rawForm: string; createdAt: string }
+
+interface WorkflowCampaignDetail {
+  id: string;
+  name: string;
+  client: string;
+  currentStage: string;
+  status: string;
+  figmaUrl: string | null;
+  specFormId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  intake: Intake | null;
+  stageHistory: StageTransition[];
+  approvals: Approval[];
+  comments: Comment[];
+}
+
+export default function WorkflowCampaignPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [campaign, setCampaign] = useState<WorkflowCampaignDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${id}`);
+      if (res.status === 404) throw new Error("Campaign not found");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setCampaign(await res.json());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function advance() {
+    if (!campaign) return;
+    if (!isValidStage(campaign.currentStage)) return;
+    const next = getNextStage(campaign.currentStage as Stage);
+    if (!next) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${id}/transition`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Transition failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signOff(channel: Channel) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${id}/approvals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Approval failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loading) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
+  if (error && !campaign) return <div className="p-8 text-sm text-destructive">{error}</div>;
+  if (!campaign) return null;
+
+  const stage = isValidStage(campaign.currentStage) ? (campaign.currentStage as Stage) : null;
+  const config = stage ? STAGE_CONFIG[stage] : null;
+  const next = stage ? getNextStage(stage) : null;
+  const isSignoffGate = config?.gate === "signoff";
+  const ownerApproved = isSignoffGate
+    ? campaign.approvals.some((a) => a.stage === campaign.currentStage && a.channel === config!.ownerChannel)
+    : true;
+  const canAdvance = !!next && (!isSignoffGate || ownerApproved);
+
   return (
-    <PhasePlaceholder
-      title={`Campaign ${id}`}
-      phase="Phase 1"
-      description="Campaign overview: current stage, assigned channels, deliverables, and links to brief, timeline, comms, and the spec form."
-    />
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-20 border-b bg-background px-6 py-4 flex items-center gap-4">
+        <Link href="/workflow" className="text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <div className="min-w-0">
+          <h1 className="font-semibold truncate">{campaign.name}</h1>
+          <p className="text-xs text-muted-foreground truncate">{campaign.client}</p>
+        </div>
+        <div className="flex-1" />
+        <Button size="sm" variant="ghost" onClick={load} disabled={busy}>
+          <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        {/* Current stage card */}
+        <section className="rounded-lg border bg-card p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Current stage</p>
+              <h2 className="text-xl font-semibold mt-0.5">{config?.label ?? campaign.currentStage}</h2>
+              {config && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Owner: <strong>{CHANNEL_LABELS[config.ownerChannel]}</strong> · Gate: {config.gate} · SLA: {config.slaDays}d
+                  {config.participants.length > 1 && (
+                    <> · Participants: {config.participants.map((c) => CHANNEL_LABELS[c]).join(", ")}</>
+                  )}
+                </p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">
+                Stage {stage ? STAGES.indexOf(stage) + 1 : "?"} of {STAGES.length}
+              </p>
+            </div>
+          </div>
+
+          {isSignoffGate && config && (
+            <div className={`rounded-md border p-3 text-sm ${ownerApproved ? "border-green-500/40 bg-green-500/5" : "border-amber-500/40 bg-amber-500/5"}`}>
+              {ownerApproved ? (
+                <p className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  {CHANNEL_LABELS[config.ownerChannel]} has signed off — ready to advance.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    Requires signoff from <strong>{CHANNEL_LABELS[config.ownerChannel]}</strong> to advance.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {CHANNELS.map((ch) => (
+                      <Button
+                        key={ch}
+                        size="sm"
+                        variant={ch === config.ownerChannel ? "default" : "outline"}
+                        onClick={() => signOff(ch)}
+                        disabled={busy}
+                      >
+                        Sign off as {CHANNEL_LABELS[ch]}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {next && (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Next: <strong>{STAGE_CONFIG[next].label}</strong>
+              </p>
+              <Button onClick={advance} disabled={!canAdvance || busy}>
+                Advance
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+          {!next && (
+            <p className="text-sm text-muted-foreground">This is the terminal stage.</p>
+          )}
+        </section>
+
+        {/* Intake details */}
+        {campaign.intake && <IntakePanel intake={campaign.intake} />}
+
+        {/* Activity log */}
+        <ActivityLog
+          transitions={campaign.stageHistory}
+          approvals={campaign.approvals}
+          comments={campaign.comments}
+        />
+      </div>
+    </div>
   );
+}
+
+function IntakePanel({ intake }: { intake: Intake }) {
+  const fields = useMemo(() => {
+    try {
+      const parsed = JSON.parse(intake.rawForm) as Record<string, unknown>;
+      return Object.entries(parsed).filter(([, v]) => v !== "" && v != null);
+    } catch {
+      return [] as [string, unknown][];
+    }
+  }, [intake.rawForm]);
+
+  return (
+    <section className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Intake</h3>
+        <p className="text-xs text-muted-foreground">
+          Submitted by {intake.submittedBy} · {format(new Date(intake.createdAt), "PP p")}
+        </p>
+      </div>
+      {fields.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No fields recorded.</p>
+      ) : (
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
+          {fields.map(([k, v]) => (
+            <Fragment key={k}>
+              <dt className="text-muted-foreground capitalize">{k.replace(/([A-Z])/g, " $1").trim()}</dt>
+              <dd className="whitespace-pre-wrap">{String(v)}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
+}
+
+interface ActivityLogProps {
+  transitions: StageTransition[];
+  approvals: Approval[];
+  comments: Comment[];
+}
+
+function ActivityLog({ transitions, approvals, comments }: ActivityLogProps) {
+  type Entry =
+    | { kind: "transition"; at: string; data: StageTransition }
+    | { kind: "approval"; at: string; data: Approval }
+    | { kind: "comment"; at: string; data: Comment };
+
+  const entries: Entry[] = [
+    ...transitions.map((t) => ({ kind: "transition" as const, at: t.createdAt, data: t })),
+    ...approvals.map((a) => ({ kind: "approval" as const, at: a.approvedAt, data: a })),
+    ...comments.map((c) => ({ kind: "comment" as const, at: c.createdAt, data: c })),
+  ].sort((a, b) => +new Date(a.at) - +new Date(b.at));
+
+  return (
+    <section className="rounded-lg border bg-card p-5">
+      <h3 className="font-semibold mb-3">Activity</h3>
+      {entries.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No activity yet.</p>
+      ) : (
+        <ol className="space-y-3 text-sm">
+          {entries.map((e, i) => (
+            <li key={i} className="flex gap-3">
+              <span className="text-xs text-muted-foreground tabular-nums w-32 shrink-0">
+                {format(new Date(e.at), "MMM d · h:mm a")}
+              </span>
+              <div className="flex-1">
+                {e.kind === "transition" && (
+                  <span>
+                    <Badge variant="secondary">transition</Badge>{" "}
+                    {e.data.fromStage ? (
+                      <>{stageLabel(e.data.fromStage)} → <strong>{stageLabel(e.data.toStage)}</strong></>
+                    ) : (
+                      <>Entered <strong>{stageLabel(e.data.toStage)}</strong></>
+                    )}
+                    <span className="text-muted-foreground"> by {e.data.triggeredBy}</span>
+                    {e.data.notes && <span className="text-muted-foreground"> — {e.data.notes}</span>}
+                  </span>
+                )}
+                {e.kind === "approval" && (
+                  <span>
+                    <Badge variant="secondary">approval</Badge>{" "}
+                    <strong>{CHANNEL_LABELS[e.data.channel as Channel] ?? e.data.channel}</strong> signed off on{" "}
+                    <strong>{stageLabel(e.data.stage)}</strong>
+                    <span className="text-muted-foreground"> by {e.data.approvedBy}</span>
+                  </span>
+                )}
+                {e.kind === "comment" && (
+                  <span>
+                    <Badge variant="secondary">{e.data.source}</Badge>{" "}
+                    <strong>{e.data.authorEmail}</strong>: {e.data.body}
+                  </span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+function stageLabel(stage: string): string {
+  return isValidStage(stage) ? STAGE_CONFIG[stage].label : stage;
 }
