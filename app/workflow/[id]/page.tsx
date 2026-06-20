@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { CampaignTabs } from "@/components/workflow/CampaignTabs";
 import { CHANNELS, CHANNEL_LABELS, type Channel } from "@/lib/workflow/channels";
 import { STAGE_CONFIG, STAGES, getNextStage, isValidStage, type Stage } from "@/lib/workflow/stages";
 
@@ -126,6 +127,7 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
           <p className="text-xs text-muted-foreground truncate">{campaign.client}</p>
         </div>
         <div className="flex-1" />
+        <CampaignTabs campaignId={campaign.id} active="overview" />
         <Button size="sm" variant="ghost" onClick={load} disabled={busy}>
           <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
         </Button>

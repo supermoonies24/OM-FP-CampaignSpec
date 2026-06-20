@@ -6,6 +6,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { differenceInCalendarDays, format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CampaignTabs } from "@/components/workflow/CampaignTabs";
 import { STAGE_CONFIG, STAGES, isValidStage } from "@/lib/workflow/stages";
 import { CHANNEL_LABELS } from "@/lib/workflow/channels";
 
@@ -71,9 +72,10 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
         </Link>
         <div className="min-w-0">
           <h1 className="font-semibold truncate">{campaign.name}</h1>
-          <p className="text-xs text-muted-foreground truncate">Timeline</p>
+          <p className="text-xs text-muted-foreground truncate">{campaign.client}</p>
         </div>
         <div className="flex-1" />
+        <CampaignTabs campaignId={campaign.id} active="timeline" />
         <Button size="sm" variant="ghost" onClick={load} disabled={loading}>
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
