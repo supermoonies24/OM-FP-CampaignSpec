@@ -1,12 +1,17 @@
 import type { Prisma } from "@prisma/client";
 import { STAGE_CONFIG, type Stage } from "./stages";
 
-// Materializes the entryActions declared in STAGE_CONFIG into
-// WorkflowNotification rows when a stage is entered. The notifications
-// are stored unsent (sentAt=null); Phase 3 (Outlook) and beyond pick them
-// up and actually deliver. This means the audit log is complete from day
-// one — every transition shows what *should* have been notified, even if
-// the integration that does the sending isn't wired yet.
+// Two-step entry-action handling on every stage transition:
+//
+// 1. recordEntryActions writes one WorkflowNotification placeholder per
+//    declared entry action. Notifications are unsent (sentAt=null);
+//    Phase 3+ integrations pick them up and actually deliver. This means
+//    the audit log is complete from day one.
+//
+// 2. runProceduralEntryActions performs side effects that can be carried
+//    out today, in-process — currently just `ensureSpecForm`. Other
+//    kinds become real when their integrations (Outlook, AI, Jira, Teams)
+//    land in later phases.
 
 type TxClient = Prisma.TransactionClient;
 
@@ -18,9 +23,6 @@ export async function recordEntryActions(
   const config = STAGE_CONFIG[toStage];
   if (config.entryActions.length === 0) return;
 
-  // Recipients = the channels expected to participate in the new stage.
-  // Until per-user auth lands, "recipients" is just the list of channel
-  // identifiers — Phase 3 will resolve channels → user emails.
   const recipients = JSON.stringify(config.participants);
 
   await tx.workflowNotification.createMany({
@@ -39,8 +41,41 @@ export async function recordEntryActions(
         slaDays: config.slaDays,
         notes: action.notes,
       }),
-      // sentAt deliberately left null — the integration that actually
-      // delivers this notification stamps sentAt when it goes out.
     })),
+  });
+
+  await runProceduralEntryActions(tx, campaignId, toStage);
+}
+
+async function runProceduralEntryActions(tx: TxClient, campaignId: string, toStage: Stage) {
+  const config = STAGE_CONFIG[toStage];
+  for (const action of config.entryActions) {
+    if (action.kind === "ensureSpecForm") {
+      await ensureSpecForm(tx, campaignId);
+    }
+  }
+}
+
+async function ensureSpecForm(tx: TxClient, campaignId: string) {
+  const campaign = await tx.workflowCampaign.findUnique({
+    where: { id: campaignId },
+    include: { briefDeck: true },
+  });
+  if (!campaign || campaign.specFormId) return;
+
+  let seed: Record<string, unknown> = { campaignName: campaign.name };
+  if (campaign.briefDeck) {
+    try {
+      const draft = JSON.parse(campaign.briefDeck.specFormDraft) as Record<string, unknown>;
+      seed = { ...seed, ...draft };
+    } catch {
+      // ignore malformed draft, use just the name
+    }
+  }
+
+  const specForm = await tx.campaign.create({ data: seed });
+  await tx.workflowCampaign.update({
+    where: { id: campaignId },
+    data: { specFormId: specForm.id },
   });
 }

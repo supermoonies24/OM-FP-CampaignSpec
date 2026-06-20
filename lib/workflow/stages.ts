@@ -40,6 +40,7 @@ export interface StageEntryAction {
     | "calendarInvite"    // create Outlook calendar invite
     | "aiBriefGenerate"   // trigger Brief Deck generation
     | "aiRiskScore"       // recompute risk for active TimelineItem
+    | "ensureSpecForm"    // create + link a spec form if none attached
     | "createJiraEpic"
     | "createTeamsChannel";
   notes?: string;
@@ -194,7 +195,10 @@ export const STAGE_CONFIG: Record<Stage, StageConfig> = {
     participants: ["DEV_OPS"],
     gate: "informational",
     slaDays: 1,
-    entryActions: [{ kind: "notify" }],
+    entryActions: [
+      { kind: "ensureSpecForm", notes: "Auto-create from brief draft if none attached" },
+      { kind: "notify" },
+    ],
   },
   BUILD_SPEC_REVIEW: {
     id: "BUILD_SPEC_REVIEW",
