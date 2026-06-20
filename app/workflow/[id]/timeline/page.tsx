@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw, Activity } from "lucide-react";
 import { differenceInCalendarDays, format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,19 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
     }
   }, [id]);
 
+  async function recomputeRisk() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${id}/score-risk`, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Risk scoring failed");
+      setLoading(false);
+    }
+  }
+
   useEffect(() => { load(); }, [load]);
 
   if (loading) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
@@ -76,6 +89,10 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
         </div>
         <div className="flex-1" />
         <CampaignTabs campaignId={campaign.id} active="timeline" />
+        <Button size="sm" variant="outline" onClick={recomputeRisk} disabled={loading}>
+          <Activity className="h-3.5 w-3.5" />
+          Score risk
+        </Button>
         <Button size="sm" variant="ghost" onClick={load} disabled={loading}>
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
