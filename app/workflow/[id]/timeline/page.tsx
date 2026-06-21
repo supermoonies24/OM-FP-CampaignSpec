@@ -13,6 +13,7 @@ import { CHANNEL_LABELS } from "@/lib/workflow/channels";
 interface TimelineItem {
   id: string;
   stage: string;
+  enteredAt: string | null;
   targetDate: string;
   actualDate: string | null;
   status: string;
@@ -103,6 +104,10 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
           <p className="text-sm text-muted-foreground">No timeline items yet — advance the campaign to populate.</p>
         )}
 
+        {campaign.timeline.length > 0 && (
+          <GanttPanel campaign={campaign} today={today} />
+        )}
+
         <div className="rounded-lg border bg-card divide-y">
           {campaign.timeline.map((item) => {
             const target = new Date(item.targetDate);
@@ -178,6 +183,96 @@ function Cell({ label, value, tone = "neutral" }: { label: string; value: string
       }>
         {value}
       </dd>
+    </div>
+  );
+}
+
+// Compact Gantt: horizontal bars per stage, anchored at campaign kickoff
+// (createdAt). Bar spans from enteredAt → actualDate (closed), or from the
+// brief-seeded targetDate back to (targetDate - slaDays) for future stages we
+// haven't reached yet. Today's date is overlaid as a thin vertical line.
+function GanttPanel({
+  campaign,
+  today,
+}: {
+  campaign: WorkflowCampaignDetail;
+  today: Date;
+}) {
+  const kickoff = new Date(campaign.createdAt);
+  const ms = (d: Date) => d.getTime();
+
+  const rows = campaign.timeline.map((t) => {
+    const target = new Date(t.targetDate);
+    const actual = t.actualDate ? new Date(t.actualDate) : null;
+    const slaDays = isValidStage(t.stage) ? STAGE_CONFIG[t.stage].slaDays : 1;
+    const entered = t.enteredAt ? new Date(t.enteredAt) : null;
+    const start = entered ?? new Date(target.getTime() - slaDays * 86400_000);
+    const end = actual ?? target;
+    return { ...t, start, end, isOpen: !actual };
+  });
+  if (rows.length === 0) return null;
+
+  const minDate = rows.reduce<Date>(
+    (m, r) => (ms(r.start) < ms(m) ? r.start : m),
+    kickoff,
+  );
+  const maxDate = rows.reduce<Date>(
+    (m, r) => (ms(r.end) > ms(m) ? r.end : m),
+    today,
+  );
+  const span = Math.max(1, ms(maxDate) - ms(minDate));
+  const pct = (d: Date) => ((ms(d) - ms(minDate)) / span) * 100;
+  const todayPct = pct(today);
+
+  const colorFor = (status: string): string => {
+    switch (status) {
+      case "complete": return "bg-emerald-500/70";
+      case "atRisk": return "bg-amber-500/70";
+      case "late": return "bg-destructive/70";
+      default: return "bg-blue-500/70";
+    }
+  };
+
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-2">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>Gantt overview</span>
+        <span className="tabular-nums">
+          {format(minDate, "MMM d")} → {format(maxDate, "MMM d, yyyy")}
+        </span>
+      </div>
+      <div className="relative">
+        {/* today marker */}
+        {todayPct >= 0 && todayPct <= 100 && (
+          <div
+            className="absolute top-0 bottom-0 border-l border-dashed border-foreground/40 pointer-events-none z-10"
+            style={{ left: `${todayPct}%` }}
+            title={`Today: ${format(today, "MMM d, yyyy")}`}
+          />
+        )}
+        <ul className="space-y-1">
+          {rows.map((r) => {
+            const left = Math.max(0, Math.min(100, pct(r.start)));
+            const width = Math.max(1.2, pct(r.end) - left);
+            const label = isValidStage(r.stage) ? STAGE_CONFIG[r.stage].label : r.stage;
+            return (
+              <li key={r.id} className="flex items-center gap-2 text-[11px]">
+                <span className="w-44 truncate text-muted-foreground" title={label}>{label}</span>
+                <div className="flex-1 relative h-3 bg-muted/40 rounded">
+                  <div
+                    className={`absolute top-0 bottom-0 rounded ${colorFor(r.status)} ${r.isOpen ? "" : "opacity-90"}`}
+                    style={{ left: `${left}%`, width: `${width}%` }}
+                    title={`${label} · ${r.status}`}
+                  />
+                </div>
+                <span className="w-12 text-right tabular-nums text-muted-foreground">
+                  {format(r.end, "MMM d")}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }
