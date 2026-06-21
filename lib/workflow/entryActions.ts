@@ -3,10 +3,10 @@ import { STAGE_CONFIG, type Stage } from "./stages";
 
 // Two-step entry-action handling on every stage transition:
 //
-// 1. recordEntryActions writes one WorkflowNotification placeholder per
-//    declared entry action. Notifications are unsent (sentAt=null);
-//    Phase 3+ integrations pick them up and actually deliver. This means
-//    the audit log is complete from day one.
+// 1. recordEntryActions writes one WorkflowNotification row per declared
+//    entry action. In-app notifications are delivered immediately
+//    (sentAt = createdAt) and surface in /inbox; Outlook + Teams notifications
+//    stay unsent (sentAt=null) until their Phase 3 integrations claim them.
 //
 // 2. runProceduralEntryActions performs side effects that can be carried
 //    out today, in-process — currently just `ensureSpecForm`. Other
@@ -25,13 +25,16 @@ export async function recordEntryActions(
 
   const recipients = JSON.stringify(config.participants);
 
-  await tx.workflowNotification.createMany({
-    data: config.entryActions.map((action) => ({
+  const now = new Date();
+  const baseRows = config.entryActions.map((action) => {
+    const channel =
+      action.kind === "calendarInvite" ? "outlook"
+      : action.kind === "createTeamsChannel" ? "teams"
+      : "inApp";
+    return {
       campaignId,
       kind: action.kind,
-      channel: action.kind === "calendarInvite" ? "outlook"
-        : action.kind === "createTeamsChannel" ? "teams"
-        : "inApp",
+      channel,
       recipients,
       payload: JSON.stringify({
         stage: toStage,
@@ -41,8 +44,30 @@ export async function recordEntryActions(
         slaDays: config.slaDays,
         notes: action.notes,
       }),
-    })),
+      sentAt: channel === "inApp" ? now : null,
+    };
   });
+
+  // Signoff stages get an additional, explicit approvalRequested in-app
+  // notification addressed to just the owner channel. The generic 'notify'
+  // entries above are too vague for the owner to spot what they need to do.
+  const signoffRows = config.gate === "signoff"
+    ? [{
+        campaignId,
+        kind: "approvalRequested",
+        channel: "inApp",
+        recipients: JSON.stringify([config.ownerChannel]),
+        payload: JSON.stringify({
+          stage: toStage,
+          stageLabel: config.label,
+          ownerChannel: config.ownerChannel,
+          slaDays: config.slaDays,
+        }),
+        sentAt: now,
+      }]
+    : [];
+
+  await tx.workflowNotification.createMany({ data: [...baseRows, ...signoffRows] });
 
   await runProceduralEntryActions(tx, campaignId, toStage);
 }
