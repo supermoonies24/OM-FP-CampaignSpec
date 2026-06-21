@@ -170,6 +170,7 @@ model WorkflowCampaign {
 
   intake        WorkflowIntake?
   briefDeck     WorkflowBriefDeck?
+  briefVersions WorkflowBriefVersion[]
   assignments   WorkflowChannelAssignment[]
   stageHistory  WorkflowStageTransition[]
   timeline      WorkflowTimelineItem[]
@@ -201,6 +202,22 @@ model WorkflowBriefDeck {
   version          Int      @default(1)
   pptxUrl          String?
   createdAt        DateTime @default(now())
+}
+
+model WorkflowBriefVersion {
+  id               String   @id @default(cuid())
+  campaignId       String
+  campaign         WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  version          Int
+  highLevelJourney String
+  sfmcJourney      String
+  timeline         String
+  specFormDraft    String
+  generatedBy      String   // "ai" | "system"
+  instructions     String?  // refinement instruction if this was a Refine
+  createdAt        DateTime @default(now())
+
+  @@index([campaignId, version])
 }
 
 model WorkflowChannelAssignment {

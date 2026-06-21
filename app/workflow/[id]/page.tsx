@@ -3,7 +3,7 @@
 import { Fragment, use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send, FileText, ExternalLink, Users, X, Undo2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send, FileText, ExternalLink, Users, X, Undo2, Sparkles, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -144,6 +144,12 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
         </div>
         <div className="flex-1" />
         <CampaignTabs campaignId={campaign.id} active="overview" />
+        <Button asChild size="sm" variant="ghost" title="Download timeline as iCalendar (.ics) — subscribe in Outlook/Google">
+          <a href={`/api/workflow-campaigns/${campaign.id}/calendar?download=1`} download>
+            <CalendarIcon className="h-3.5 w-3.5" />
+            ICS
+          </a>
+        </Button>
         <DuplicateButton campaignId={campaign.id} />
         <Button size="sm" variant="ghost" onClick={load} disabled={busy}>
           <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
@@ -213,6 +219,7 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <KickBackPicker
+              campaignId={campaign.id}
               currentStage={stage}
               disabled={busy}
               onKickBack={(target, notes) => transition(target, notes)}
@@ -343,21 +350,37 @@ function StatusPanel({ campaign, onChange }: { campaign: WorkflowCampaignDetail;
 }
 
 function KickBackPicker({
+  campaignId,
   currentStage,
   disabled,
   onKickBack,
 }: {
+  campaignId: string;
   currentStage: Stage | null;
   disabled: boolean;
   onKickBack: (target: string, notes: string) => void;
 }) {
   const [target, setTarget] = useState("");
   const [notes, setNotes] = useState("");
+  const [drafting, setDrafting] = useState(false);
   const earlier = useMemo(() => {
     if (!currentStage) return [] as Stage[];
     const idx = STAGES.indexOf(currentStage);
     return STAGES.slice(0, idx);
   }, [currentStage]);
+
+  async function suggestReason() {
+    if (!target) return;
+    setDrafting(true);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${campaignId}/draft-kickback?to=${target}`);
+      if (!res.ok) return;
+      const j = (await res.json()) as { reason: string };
+      if (j.reason) setNotes(j.reason);
+    } finally {
+      setDrafting(false);
+    }
+  }
 
   if (earlier.length === 0) return <div />;
 
@@ -384,6 +407,18 @@ function KickBackPicker({
         disabled={disabled}
         className="h-9 w-56"
       />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={suggestReason}
+        disabled={disabled || drafting || !target}
+        title="Draft reason from recent comments"
+        className="h-9"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        {drafting ? "…" : "Suggest"}
+      </Button>
       <Button
         variant="outline"
         disabled={disabled || !target}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { AlertTriangle, Bell, CheckCheck, Inbox, RefreshCw, Sparkles, Calendar } from "lucide-react";
+import { AlertTriangle, AtSign, Bell, CheckCheck, Inbox, RefreshCw, Sparkles, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,6 +29,8 @@ function kindIcon(kind: string) {
       return <Calendar className="h-4 w-4 text-blue-500" />;
     case "aiBriefGenerate":
       return <Sparkles className="h-4 w-4 text-violet-500" />;
+    case "mention":
+      return <AtSign className="h-4 w-4 text-pink-500" />;
     default:
       return <Bell className="h-4 w-4 text-muted-foreground" />;
   }
@@ -47,6 +49,11 @@ function summarize(item: InboxItem): string {
     case "approvalRequested": {
       const owner = p.ownerChannel as string | undefined;
       return `${stageLabel} needs ${owner ?? ""} approval`;
+    }
+    case "mention": {
+      const author = p.authorEmail as string | undefined;
+      const preview = p.preview as string | undefined;
+      return `${author ?? "Someone"} mentioned ${p.all ? "@here" : `@${p.mentionedChannel}`}${preview ? `: ${preview}` : ""}`;
     }
     case "calendarInvite":
       return `${stageLabel} meeting needs scheduling${p.notes ? ` (${p.notes})` : ""}`;
@@ -73,6 +80,8 @@ function deepLink(item: InboxItem): string {
       return `/workflow/${item.campaignId}/comms`;
     case "approvalRequested":
       return `/workflow/${item.campaignId}`;
+    case "mention":
+      return `/workflow/${item.campaignId}/comms`;
     default:
       return `/workflow/${item.campaignId}`;
   }

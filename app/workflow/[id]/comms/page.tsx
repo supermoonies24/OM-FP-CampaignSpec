@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CampaignTabs } from "@/components/workflow/CampaignTabs";
+import { CommentBody } from "@/components/workflow/CommentBody";
 import { cn } from "@/lib/utils";
 
 interface Comment { id: string; source: string; authorEmail: string; body: string; createdAt: string }
@@ -164,7 +165,7 @@ function CommentRow({ comment: c }: { comment: Comment }) {
           <Badge variant="secondary">{c.source}</Badge>
           <span className="font-medium">{c.authorEmail}</span>
         </div>
-        <p className="mt-1 whitespace-pre-wrap">{c.body}</p>
+        <div className="mt-1"><CommentBody body={c.body} /></div>
         <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(c.createdAt), "MMM d · h:mm a")}</p>
       </div>
     </div>

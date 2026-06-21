@@ -28,7 +28,7 @@
 - **Admin** `/admin/channels` (assignments by channel or person), `/admin/templates` (brief library)
 - **State machine wiring** — every transition rolls TimelineItems (closes prior, opens next), writes Notification placeholders per declared entry action, auto-attaches spec form on entry to BUILD_SPEC_FORM
 - **Risk scoring** — `lib/ai/riskScorer.ts` calls Claude per open TimelineItem with comment activity, approval round count, and historical avg duration for the stage (Phase 2b). Closed items still use the deterministic baseline. `/api/workflow-campaigns/[id]/score-risk` and `/api/workflow-campaigns/score-risk` (batch) both upgraded.
-- **Tests** — 52 passing (Node built-in runner, `npm test`)
+- **Tests** — 70 passing (Node built-in runner, `npm test`)
 
 ### Phase 2e — Activity, refinement, search
 - ✅ Activity feed at `/activity`: cross-campaign unified stream of StageTransitions, Approvals, Comments, brief regenerations. Type filters + time window (24h/7d/30d/90d). Backed by `GET /api/activity?types=...&sinceHours=N&limit=N`. Sidebar link added.
@@ -39,6 +39,15 @@
 - ✅ Risk dashboard at `/risk`: cross-campaign view of every open atRisk/late TimelineItem. Summary cards (late count, atRisk count, campaigns affected). Per-owner-channel breakdown. Filterable by channel + severity. Recompute button calls the batch scorer. Backed by `GET /api/risk`. Sidebar link added.
 - ✅ Gantt-style timeline visual on `/workflow/[id]/timeline`: compact horizontal bars per stage anchored at campaign kickoff, colored by status, with a today marker. Sits above the existing detail table.
 - ✅ AI intake clarifier: `lib/ai/intakeClarifier.ts` detects sparse intakes (< 3 of 4 key fields filled) and asks Claude for up to 5 targeted follow-up questions with reasons + the intake field each answer would populate. Falls back to a generic 3-item checklist. Surfaced as a panel on `/workflow/[id]` when intake is sparse. Backed by `GET /api/workflow-campaigns/[id]/clarify-intake`. Feature: `intake_clarifier` in AiRun.
+
+### Phase 2k — Mentions, kickback AI, calendar export, brief history
+- ✅ Comment @mentions: `lib/workflow/mentions.ts` parses @CHANNEL tokens (case-insensitive, common spelling aliases, @here/@everyone/@channel for "all"). Posting a comment with a mention fires an inApp `kind: "mention"` notification addressed to each mentioned channel. Surfaced in `/inbox` with its own icon + summary.
+- ✅ AI kickback reason drafter: `lib/ai/kickbackDrafter.ts` summarizes recent comments + the last transition into a 1-2 sentence kick-back reason. Falls back to a comment-derived or generic stub. "Suggest" button next to the kick-back reason field on the campaign overview pre-fills the textbox — user can edit or discard. Backed by `GET /api/workflow-campaigns/[id]/draft-kickback?to=STAGE`.
+- ✅ Per-campaign ICS calendar export: `lib/ics.ts` is a small RFC 5545 serializer (no dep). `GET /api/workflow-campaigns/[id]/calendar` returns one all-day VEVENT per TimelineItem at its target date — subscribable in Outlook/Google. "ICS" button on the campaign overview header (`?download=1` forces the .ics filename).
+- ✅ Brief version history: new `WorkflowBriefVersion` table (migration `add_brief_versions`) snapshots the prior brief deck every time a regenerate or refine happens, including the refinement instruction if any. "Version History" panel on `/workflow/[id]/brief` lists prior versions with timestamp + generatedBy + the refinement note. Backed by `GET /api/workflow-campaigns/[id]/brief-versions` (+ `/[versionId]` for full payload, not yet surfaced in UI).
+- ✅ Markdown + mention rendering in comments: `components/workflow/CommentBody.tsx` is a small custom renderer (no markdown dep) supporting `**bold**`, `*italic*`, `` `code` ``, `[text](url)` / bare URLs, and `@CHANNEL` highlighting. Wired into the comms feed.
+
+Tests now total 70 across 17 suites.
 
 ### Phase 2j — Tags + bulk status
 - ✅ Campaign tags: new `WorkflowCampaign.tags` JSON column (migration `add_campaign_tags`). Tags panel on `/workflow/[id]` lets you add/remove (32-char max, deduped, trimmed). Server-side search now matches tags too — searching the workflow board for "Super Duty" finds anything tagged with it.

@@ -51,6 +51,14 @@ interface SimilarCampaign {
   reason: string;
 }
 
+interface BriefVersionSummary {
+  id: string;
+  version: number;
+  generatedBy: string;
+  instructions: string | null;
+  createdAt: string;
+}
+
 export default function BriefPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [campaign, setCampaign] = useState<WorkflowCampaignDetail | null>(null);
@@ -64,18 +72,22 @@ export default function BriefPage({ params }: { params: Promise<{ id: string }> 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
   const [refineText, setRefineText] = useState("");
+  const [versions, setVersions] = useState<BriefVersionSummary[]>([]);
+  const [versionsOpen, setVersionsOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [campRes, runsRes] = await Promise.all([
+      const [campRes, runsRes, versionsRes] = await Promise.all([
         fetch(`/api/workflow-campaigns/${id}`),
         fetch(`/api/workflow-campaigns/${id}/ai-runs?limit=20`),
+        fetch(`/api/workflow-campaigns/${id}/brief-versions`),
       ]);
       if (!campRes.ok) throw new Error(`HTTP ${campRes.status}`);
       setCampaign(await campRes.json());
       if (runsRes.ok) setAiRuns(await runsRes.json());
+      if (versionsRes.ok) setVersions(await versionsRes.json());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -321,6 +333,39 @@ export default function BriefPage({ params }: { params: Promise<{ id: string }> 
                     </li>
                   ))}
                 </ul>
+              )}
+            </section>
+
+            <section className="rounded-lg border bg-card p-5 space-y-3">
+              <button
+                type="button"
+                onClick={() => setVersionsOpen((v) => !v)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <h3 className="font-semibold">Version History</h3>
+                <span className="text-xs text-muted-foreground">
+                  {versions.length} prior version{versions.length === 1 ? "" : "s"} · click to {versionsOpen ? "hide" : "show"}
+                </span>
+              </button>
+              {versionsOpen && (
+                versions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No prior versions yet — this is v1.</p>
+                ) : (
+                  <ul className="space-y-2 text-sm">
+                    {versions.map((v) => (
+                      <li key={v.id} className="rounded border p-3 flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-[10px]">v{v.version}</Badge>
+                        <Badge variant={v.generatedBy === "ai" ? "default" : "secondary"} className="text-[10px]">
+                          {v.generatedBy}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">{format(new Date(v.createdAt), "PPp")}</span>
+                        {v.instructions && (
+                          <p className="text-xs text-muted-foreground w-full">↳ refined: {v.instructions}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )
               )}
             </section>
 

@@ -66,6 +66,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     generatedBy: source === "ai" ? "ai" : getActorId(),
   };
 
+  // Snapshot the prior brief BEFORE writing the new one so history isn't lost.
+  if (campaign.briefDeck) {
+    try {
+      await prisma.workflowBriefVersion.create({
+        data: {
+          campaignId: id,
+          version: campaign.briefDeck.version,
+          highLevelJourney: campaign.briefDeck.highLevelJourney,
+          sfmcJourney: campaign.briefDeck.sfmcJourney,
+          timeline: campaign.briefDeck.timeline,
+          specFormDraft: campaign.briefDeck.specFormDraft,
+          generatedBy: campaign.briefDeck.generatedBy,
+          instructions: instructions || null,
+        },
+      });
+    } catch (err) {
+      console.error("[generate-brief] version snapshot failed:", err);
+    }
+  }
+
   let brief = campaign.briefDeck
     ? await prisma.workflowBriefDeck.update({
         where: { id: campaign.briefDeck.id },

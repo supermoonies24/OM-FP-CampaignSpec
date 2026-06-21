@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseMentions } from "@/lib/workflow/mentions";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,14 +14,43 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "body required" }, { status: 400 });
   }
 
+  const trimmed = text.trim();
   const comment = await prisma.workflowComment.create({
     data: {
       campaignId: id,
       source: typeof source === "string" ? source : "inApp",
       authorEmail,
-      body: text.trim(),
+      body: trimmed,
     },
   });
+
+  // @mentions fire one inApp notification per mentioned channel. Errors here
+  // are non-fatal — the comment write is the load-bearing action.
+  const mentions = parseMentions(trimmed);
+  if (mentions.channels.length > 0) {
+    try {
+      const preview = trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed;
+      const now = new Date();
+      await prisma.workflowNotification.createMany({
+        data: mentions.channels.map((channel) => ({
+          campaignId: id,
+          kind: "mention",
+          channel: "inApp",
+          recipients: JSON.stringify([channel]),
+          payload: JSON.stringify({
+            authorEmail,
+            commentId: comment.id,
+            mentionedChannel: channel,
+            all: mentions.all,
+            preview,
+          }),
+          sentAt: now,
+        })),
+      });
+    } catch (err) {
+      console.error("[comments] mention notification write failed:", err);
+    }
+  }
 
   return NextResponse.json(comment, { status: 201 });
 }
