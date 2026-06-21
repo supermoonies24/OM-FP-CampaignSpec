@@ -43,3 +43,6 @@ next-env.d.ts
 /app/generated/prisma
 dev.db
 *.db-journal
+
+# generated brief decks (regenerated on demand; not source-controlled)
+/public/briefs/

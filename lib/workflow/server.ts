@@ -30,8 +30,11 @@ type TxClient = Prisma.TransactionClient;
 
 /**
  * Writes the bookkeeping for entering a stage: closes any open TimelineItem
- * for the previous stage (marking it complete or late), then opens a new
- * TimelineItem for the next stage with a target derived from its SLA.
+ * for the previous stage (marking it complete or late), then opens a
+ * TimelineItem for the next stage. If a TimelineItem already exists for the
+ * destination stage (because a brief deck pre-seeded the cadence — see
+ * lib/workflow/timeline.ts), this respects it; otherwise creates one with a
+ * target derived from the stage SLA.
  *
  * Caller is responsible for writing the StageTransition row and updating
  * Campaign.currentStage — this only touches TimelineItem rows.
@@ -59,10 +62,27 @@ async function rollTimeline(
     }
   }
 
+  const existing = await tx.workflowTimelineItem.findFirst({
+    where: { campaignId, stage: toStage, actualDate: null },
+    orderBy: { targetDate: "asc" },
+  });
+  if (existing) {
+    // Brief-seeded item already in place — stamp the entry time now that
+    // the stage is actually active, so the risk scorer can compute days-in-stage.
+    if (!existing.enteredAt) {
+      await tx.workflowTimelineItem.update({
+        where: { id: existing.id },
+        data: { enteredAt: at },
+      });
+    }
+    return;
+  }
+
   await tx.workflowTimelineItem.create({
     data: {
       campaignId,
       stage: toStage,
+      enteredAt: at,
       targetDate: targetDateFor(STAGE_CONFIG[toStage].slaDays, at),
       status: "onTrack",
     },

@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { buildBriefStub } from "@/lib/workflow/briefStub";
+import { generateBrief } from "@/lib/ai/briefGenerator";
+import { renderBriefPptx } from "@/lib/ai/briefPptx";
+import { syncBriefTimeline } from "@/lib/workflow/timeline";
 import { getActorId } from "@/lib/workflow/server";
+import type { BriefDeckPayload } from "@/lib/workflow/briefStub";
 
-// Phase 1 stub. Phase 2 swaps the buildBriefStub() call for a Claude
-// API generation. Either way, the persistence shape is the same so the
-// UI and downstream pptx export are stable.
-export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// Phase 2a: brief deck generation goes through the Claude-powered
+// generateBrief(). It falls back to the deterministic stub when
+// ANTHROPIC_API_KEY is unset or the model call fails, so dev/CI keep working.
+//
+// Optional body { instructions?: string } refines an existing brief — the
+// model receives the prior payload + the new instruction and iterates rather
+// than starting from scratch. Empty body = fresh generation.
+//
+// After persistence: (1) sync WorkflowTimelineItem.targetDate from the brief's
+// suggested cadence so the rest of the workflow inherits the planned dates,
+// (2) render a navy-branded pptx to public/briefs/ for download. Failures in
+// (1) or (2) are non-fatal — the brief still saves.
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  const body = (await req.json().catch(() => ({}))) as { instructions?: string };
+  const instructions = typeof body.instructions === "string" ? body.instructions.trim() : "";
 
   const campaign = await prisma.workflowCampaign.findUnique({
     where: { id },
@@ -19,10 +34,28 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     ? (() => { try { return JSON.parse(campaign.intake!.rawForm) as Record<string, unknown>; } catch { return null; } })()
     : null;
 
-  const payload = buildBriefStub({
+  // If refining, hydrate the prior brief from its serialized fields.
+  let previousBrief: BriefDeckPayload | null = null;
+  if (instructions && campaign.briefDeck) {
+    try {
+      previousBrief = {
+        highLevelJourney: JSON.parse(campaign.briefDeck.highLevelJourney),
+        sfmcJourney: JSON.parse(campaign.briefDeck.sfmcJourney),
+        timeline: JSON.parse(campaign.briefDeck.timeline),
+        specFormDraft: JSON.parse(campaign.briefDeck.specFormDraft),
+      };
+    } catch {
+      previousBrief = null;
+    }
+  }
+
+  const { payload, source } = await generateBrief({
+    campaignId: id,
     campaignName: campaign.name,
     client: campaign.client,
     intakeRaw,
+    instructions: instructions || null,
+    previousBrief,
   });
 
   const data = {
@@ -30,10 +63,10 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     sfmcJourney: JSON.stringify(payload.sfmcJourney),
     timeline: JSON.stringify(payload.timeline),
     specFormDraft: JSON.stringify(payload.specFormDraft),
-    generatedBy: getActorId(), // "system" — Phase 2 will record "ai"
+    generatedBy: source === "ai" ? "ai" : getActorId(),
   };
 
-  const brief = campaign.briefDeck
+  let brief = campaign.briefDeck
     ? await prisma.workflowBriefDeck.update({
         where: { id: campaign.briefDeck.id },
         data: { ...data, version: { increment: 1 } },
@@ -41,6 +74,30 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     : await prisma.workflowBriefDeck.create({
         data: { campaignId: id, ...data },
       });
+
+  // Anchor for timeline math — intake creation time is the campaign's kickoff.
+  const kickoff = campaign.intake?.createdAt ?? campaign.createdAt;
+  try {
+    await syncBriefTimeline({ campaignId: id, payload, kickoff });
+  } catch (err) {
+    console.error("[generate-brief] timeline sync failed:", err);
+  }
+
+  try {
+    const { publicUrl } = await renderBriefPptx({
+      campaignId: id,
+      campaignName: campaign.name,
+      client: campaign.client,
+      version: brief.version,
+      payload,
+    });
+    brief = await prisma.workflowBriefDeck.update({
+      where: { id: brief.id },
+      data: { pptxUrl: publicUrl },
+    });
+  } catch (err) {
+    console.error("[generate-brief] pptx render failed:", err);
+  }
 
   return NextResponse.json(brief);
 }
