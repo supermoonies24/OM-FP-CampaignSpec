@@ -2,6 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Send, FileText, ExternalLink, Users, X, Undo2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ interface WorkflowCampaignDetail {
   status: string;
   figmaUrl: string | null;
   specFormId: string | null;
+  tags: string | null;
   createdAt: string;
   updatedAt: string;
   intake: Intake | null;
@@ -142,6 +144,7 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
         </div>
         <div className="flex-1" />
         <CampaignTabs campaignId={campaign.id} active="overview" />
+        <DuplicateButton campaignId={campaign.id} />
         <Button size="sm" variant="ghost" onClick={load} disabled={busy}>
           <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
         </Button>
@@ -252,8 +255,14 @@ export default function WorkflowCampaignPage({ params }: { params: Promise<{ id:
         {/* Status control */}
         <StatusPanel campaign={campaign} onChange={load} />
 
+        {/* Tags */}
+        <TagsPanel campaign={campaign} onChange={load} />
+
         {/* Intake details */}
         {campaign.intake && <IntakePanel intake={campaign.intake} />}
+
+        {/* AI-suggested intake clarifications when intake is sparse. */}
+        {campaign.intake && <IntakeClarificationsPanel campaignId={campaign.id} />}
 
         <CommentComposer campaignId={campaign.id} onPosted={load} />
 
@@ -624,6 +633,150 @@ function IntakePanel({ intake }: { intake: Intake }) {
           ))}
         </dl>
       )}
+    </section>
+  );
+}
+
+function TagsPanel({ campaign, onChange }: { campaign: WorkflowCampaignDetail; onChange: () => void }) {
+  const initial = useMemo(() => {
+    try { return JSON.parse(campaign.tags ?? "[]") as string[]; } catch { return []; }
+  }, [campaign.tags]);
+  const [tags, setTags] = useState<string[]>(initial);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { setTags(initial); }, [initial]);
+
+  async function persist(next: string[]) {
+    setBusy(true);
+    try {
+      await fetch(`/api/workflow-campaigns/${campaign.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: next }),
+      });
+      onChange();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function add() {
+    const t = draft.trim();
+    if (!t || tags.includes(t)) return;
+    const next = [...tags, t];
+    setTags(next);
+    setDraft("");
+    persist(next);
+  }
+
+  function remove(t: string) {
+    const next = tags.filter((x) => x !== t);
+    setTags(next);
+    persist(next);
+  }
+
+  return (
+    <section className="rounded-lg border bg-card p-5 space-y-3">
+      <h3 className="font-semibold">Tags</h3>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {tags.length === 0 && <p className="text-xs text-muted-foreground">No tags yet.</p>}
+        {tags.map((t) => (
+          <Badge key={t} variant="secondary" className="text-xs gap-1">
+            {t}
+            <button type="button" onClick={() => remove(t)} disabled={busy} className="hover:opacity-70">×</button>
+          </Badge>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          placeholder="Add a tag (e.g. Super Duty, Q3, fleet)…"
+          className="text-sm h-8"
+          maxLength={32}
+        />
+        <Button size="sm" variant="outline" onClick={add} disabled={busy || !draft.trim()}>Add</Button>
+      </div>
+    </section>
+  );
+}
+
+function DuplicateButton({ campaignId }: { campaignId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    if (!confirm("Duplicate this campaign? It will start fresh at INTAKE with the same intake form.")) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/workflow-campaigns/${campaignId}/duplicate`, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { id: string };
+      router.push(`/workflow/${data.id}`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Duplicate failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Button size="sm" variant="ghost" onClick={run} disabled={busy} title="Duplicate this campaign">
+      <FileText className="h-3.5 w-3.5" />
+      Duplicate
+    </Button>
+  );
+}
+
+function IntakeClarificationsPanel({ campaignId }: { campaignId: string }) {
+  const [data, setData] = useState<{
+    questions: { question: string; reason: string; field?: string }[];
+    source: "ai" | "stub" | "skipped";
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/workflow-campaigns/${campaignId}/clarify-intake`)
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled) setData(j); })
+      .catch(() => { /* silent */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [campaignId]);
+
+  // Don't render when the intake is comprehensive enough that the API skipped.
+  if (loading) return null;
+  if (!data || data.source === "skipped" || data.questions.length === 0) return null;
+
+  return (
+    <section className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <h3 className="font-semibold">Intake clarifications</h3>
+        <Badge variant={data.source === "ai" ? "default" : "secondary"} className="text-[10px]">
+          {data.source === "ai" ? "AI-suggested" : "Default checklist"}
+        </Badge>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {data.questions.length} question{data.questions.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        The intake form looks sparse. These follow-ups would most improve brief quality.
+      </p>
+      <ol className="space-y-2 text-sm list-decimal pl-5">
+        {data.questions.map((q, i) => (
+          <li key={i} className="space-y-0.5">
+            <p>{q.question}</p>
+            <p className="text-xs text-muted-foreground">
+              {q.reason}
+              {q.field && <> · fills <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{q.field}</code></>}
+            </p>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

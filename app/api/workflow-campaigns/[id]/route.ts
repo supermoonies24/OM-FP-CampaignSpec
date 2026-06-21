@@ -27,9 +27,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // transition endpoint so the state machine enforces gates.
   const {
     id: _id, createdAt, updatedAt, currentStage,
-    intake, briefDeck, assignments, stageHistory, timeline, approvals, notifications, comments,
+    intake, briefDeck, assignments, stageHistory, timeline, approvals, notifications, comments, aiRuns,
+    tags,
     ...data
   } = body;
+  // tags arrives as string[]; persist as JSON since SQLite has no array type.
+  if (Array.isArray(tags)) {
+    const cleaned = tags
+      .filter((t): t is string => typeof t === "string")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0 && t.length <= 32);
+    (data as Record<string, unknown>).tags = JSON.stringify(Array.from(new Set(cleaned)));
+  } else if (tags === null) {
+    (data as Record<string, unknown>).tags = null;
+  }
   const campaign = await prisma.workflowCampaign.update({ where: { id }, data });
   return NextResponse.json(campaign);
 }

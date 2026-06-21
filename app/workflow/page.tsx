@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, RefreshCw, LayoutGrid, List, Search, Activity } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, LayoutGrid, List, Search, Activity, Download, Layers } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,12 +75,66 @@ export default function WorkflowBoardPage() {
   const [view, setView] = useState<"board" | "list">("board");
   const [search, setSearch] = useState("");
   const [hideClosed, setHideClosed] = useState(true);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  async function load() {
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkAdvance() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Advance ${selectedIds.size} campaign${selectedIds.size === 1 ? "" : "s"} to the next stage? Signoff gates will still be enforced.`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/workflow-campaigns/bulk-advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = (await res.json()) as { advanced: number; blocked: number };
+      setSelectedIds(new Set());
+      alert(`Advanced: ${json.advanced} · Blocked by gate: ${json.blocked}`);
+      await load(search);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Bulk advance failed");
+      setLoading(false);
+    }
+  }
+
+  async function bulkStatus(status: string) {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Set status to "${status}" for ${selectedIds.size} campaign${selectedIds.size === 1 ? "" : "s"}?`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/workflow-campaigns/bulk-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds), status }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setSelectedIds(new Set());
+      await load(search);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Bulk status change failed");
+      setLoading(false);
+    }
+  }
+
+  async function load(q?: string) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/workflow-campaigns");
+      const url = q && q.trim()
+        ? `/api/workflow-campaigns?q=${encodeURIComponent(q.trim())}`
+        : "/api/workflow-campaigns";
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as WorkflowCampaignSummary[];
       setCampaigns(data);
@@ -108,6 +162,14 @@ export default function WorkflowBoardPage() {
     load();
   }, []);
 
+  // Debounced server-side search. Empty query reloads the full list.
+  useEffect(() => {
+    const q = search.trim();
+    const t = setTimeout(() => { load(q || undefined); }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
   const stats = useMemo(() => {
     let active = 0, late = 0, atRisk = 0, shipped = 0, cancelled = 0;
     for (const c of campaigns) {
@@ -124,13 +186,13 @@ export default function WorkflowBoardPage() {
   }, [campaigns]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    // Server-side search has already narrowed the list — client-side filter
+    // only handles the Hide Closed toggle now.
     return campaigns.filter((c) => {
       if (hideClosed && (c.status === "cancelled" || c.status === "shipped")) return false;
-      if (!q) return true;
-      return c.name.toLowerCase().includes(q) || c.client.toLowerCase().includes(q);
+      return true;
     });
-  }, [campaigns, search, hideClosed]);
+  }, [campaigns, hideClosed]);
 
   const byStage = useMemo(() => {
     const map = new Map<Stage, WorkflowCampaignSummary[]>();
@@ -173,6 +235,43 @@ export default function WorkflowBoardPage() {
           <input type="checkbox" checked={hideClosed} onChange={(e) => setHideClosed(e.target.checked)} />
           Hide closed
         </label>
+        <PresetMenu
+          search={search}
+          hideClosed={hideClosed}
+          view={view}
+          onApply={(p) => {
+            setSearch(p.query ?? "");
+            setHideClosed(p.hideClosed);
+            setView(p.view === "list" ? "list" : "board");
+          }}
+        />
+        {view === "list" && (
+          <button
+            type="button"
+            onClick={() => { setSelectMode((v) => !v); setSelectedIds(new Set()); }}
+            className={`text-xs border rounded px-2 py-1 ${selectMode ? "bg-accent" : "bg-background hover:bg-accent"}`}
+          >
+            {selectMode ? `Select on (${selectedIds.size})` : "Select"}
+          </button>
+        )}
+        {selectMode && view === "list" && selectedIds.size > 0 && (
+          <>
+            <Button size="sm" variant="outline" onClick={bulkAdvance} disabled={loading}>
+              Advance {selectedIds.size}
+            </Button>
+            <select
+              onChange={(e) => { if (e.target.value) { bulkStatus(e.target.value); e.target.value = ""; } }}
+              defaultValue=""
+              className="text-xs border rounded px-2 py-1 bg-background"
+            >
+              <option value="">Set status…</option>
+              <option value="active">Active</option>
+              <option value="onHold">On Hold</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="shipped">Shipped</option>
+            </select>
+          </>
+        )}
         <div className="flex items-center rounded-md border p-0.5">
           <button
             type="button"
@@ -195,8 +294,20 @@ export default function WorkflowBoardPage() {
           <Activity className="h-3.5 w-3.5" />
           Score risk
         </Button>
-        <Button size="sm" variant="ghost" onClick={load} disabled={loading}>
+        <Button size="sm" variant="ghost" onClick={() => load(search)} disabled={loading}>
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+        </Button>
+        <Link href="/workflow/compare">
+          <Button size="sm" variant="outline" title="Compare two campaigns side by side">
+            <Layers className="h-3.5 w-3.5" />
+            Compare
+          </Button>
+        </Link>
+        <Button asChild size="sm" variant="outline" title="Download campaigns as CSV (add ?include=timeline for per-stage rows)">
+          <a href="/api/workflow-campaigns/export?include=timeline" download>
+            <Download className="h-3.5 w-3.5" />
+            CSV
+          </a>
         </Button>
         <Link href="/intake">
           <Button size="sm">
@@ -232,7 +343,13 @@ export default function WorkflowBoardPage() {
         </div>
       )}
 
-      {campaigns.length > 0 && view === "list" && <ListView campaigns={filtered} />}
+      {campaigns.length > 0 && view === "list" && (
+        <ListView
+          campaigns={filtered}
+          selected={selectMode ? selectedIds : undefined}
+          onToggle={selectMode ? toggleSelected : undefined}
+        />
+      )}
 
       {campaigns.length > 0 && view === "board" && <ScrollArea className="flex-1">
         <div className="flex gap-3 p-4 min-w-max">
@@ -284,16 +401,26 @@ export default function WorkflowBoardPage() {
   );
 }
 
-function ListView({ campaigns }: { campaigns: WorkflowCampaignSummary[] }) {
+function ListView({
+  campaigns,
+  selected,
+  onToggle,
+}: {
+  campaigns: WorkflowCampaignSummary[];
+  selected?: Set<string>;
+  onToggle?: (id: string) => void;
+}) {
   if (campaigns.length === 0) {
     return <div className="px-6 py-12 text-sm text-muted-foreground text-center">No campaigns match.</div>;
   }
+  const selectMode = !!selected && !!onToggle;
   return (
     <div className="px-4 py-4">
       <div className="rounded-lg border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
+              {selectMode && <th className="w-8 text-center font-medium"></th>}
               <th className="text-left px-4 py-2 font-medium">Name</th>
               <th className="text-left px-4 py-2 font-medium">Client</th>
               <th className="text-left px-4 py-2 font-medium">Stage</th>
@@ -306,8 +433,18 @@ function ListView({ campaigns }: { campaigns: WorkflowCampaignSummary[] }) {
             {campaigns.map((c) => {
               const stage = isValidStage(c.currentStage) ? c.currentStage : null;
               const config = stage ? STAGE_CONFIG[stage] : null;
+              const isSelected = selected?.has(c.id) ?? false;
               return (
-                <tr key={c.id} className="hover:bg-muted/30">
+                <tr key={c.id} className={`hover:bg-muted/30 ${isSelected ? "bg-accent/30" : ""}`}>
+                  {selectMode && (
+                    <td className="text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onToggle!(c.id)}
+                      />
+                    </td>
+                  )}
                   <td className="px-4 py-2.5">
                     <Link href={`/workflow/${c.id}`} className="font-medium hover:underline inline-flex items-center gap-2">
                       <RiskDot campaign={c} />
@@ -331,6 +468,130 @@ function ListView({ campaigns }: { campaigns: WorkflowCampaignSummary[] }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+interface Preset {
+  id: string;
+  name: string;
+  query: string | null;
+  hideClosed: boolean;
+  view: string;
+}
+
+function PresetMenu({
+  search,
+  hideClosed,
+  view,
+  onApply,
+}: {
+  search: string;
+  hideClosed: boolean;
+  view: "board" | "list";
+  onApply: (p: Preset) => void;
+}) {
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [name, setName] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/workflow-presets");
+      if (res.ok) setPresets(await res.json());
+    } catch {
+      // background
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function save() {
+    if (!name.trim()) return;
+    setBusy(true);
+    try {
+      await fetch("/api/workflow-presets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), query: search, hideClosed, view }),
+      });
+      setName("");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(id: string) {
+    setBusy(true);
+    try {
+      await fetch(`/api/workflow-presets/${id}`, { method: "DELETE" });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs border rounded px-2 py-1 bg-background hover:bg-accent"
+      >
+        Presets ({presets.length})
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-72 rounded-md border bg-popover shadow-lg z-30 p-2 space-y-2">
+          {presets.length === 0 ? (
+            <p className="text-xs text-muted-foreground p-2">No saved presets yet.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {presets.map((p) => (
+                <li key={p.id} className="flex items-center gap-2 text-xs hover:bg-accent/30 rounded px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => { onApply(p); setOpen(false); }}
+                    className="flex-1 text-left"
+                    title={`q:"${p.query ?? ""}" · ${p.hideClosed ? "hide closed" : "all"} · ${p.view}`}
+                  >
+                    <span className="font-medium">{p.name}</span>{" "}
+                    {p.query && <span className="text-muted-foreground">— {p.query}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(p.id)}
+                    disabled={busy}
+                    className="text-muted-foreground hover:text-destructive"
+                    title="Delete preset"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="border-t pt-2 flex items-center gap-1">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Save current as…"
+              className="flex-1 text-xs border rounded px-2 py-1 bg-background"
+              onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+            />
+            <button
+              type="button"
+              onClick={save}
+              disabled={busy || !name.trim()}
+              className="text-xs border rounded px-2 py-1 bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
