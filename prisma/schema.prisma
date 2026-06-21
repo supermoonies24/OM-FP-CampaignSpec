@@ -163,6 +163,7 @@ model WorkflowCampaign {
   jiraEpicKey     String?
   sfmcJourneyId   String?
   teamsChannelUrl String?
+  tags            String?  // JSON: string[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deployedAt      DateTime?
@@ -175,6 +176,7 @@ model WorkflowCampaign {
   approvals     WorkflowApproval[]
   notifications WorkflowNotification[]
   comments      WorkflowComment[]
+  aiRuns        AiRun[]
 }
 
 model WorkflowIntake {
@@ -230,6 +232,7 @@ model WorkflowTimelineItem {
   campaignId String
   campaign   WorkflowCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   stage      String
+  enteredAt  DateTime?  // when the stage actually became active for this campaign (null on brief-seeded future items)
   targetDate DateTime
   actualDate DateTime?
   status     String    @default("onTrack")  // onTrack | atRisk | late | complete
@@ -261,9 +264,11 @@ model WorkflowNotification {
   channel    String   // outlook | inApp | teams
   payload    String   // JSON
   sentAt     DateTime?
+  readAt     DateTime?  // single-tenant: read state is global
   createdAt  DateTime @default(now())
 
   @@index([campaignId, createdAt])
+  @@index([channel, readAt])
 }
 
 model WorkflowComment {
@@ -277,4 +282,32 @@ model WorkflowComment {
   createdAt   DateTime @default(now())
 
   @@index([campaignId, createdAt])
+}
+
+model WorkflowFilterPreset {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  query     String?  // text query
+  hideClosed Boolean @default(true)
+  view      String   @default("board")  // board | list
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AiRun {
+  id         String   @id @default(cuid())
+  campaignId String?
+  campaign   WorkflowCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  feature    String   // brief_generator | risk_scorer | meeting_suggester
+  model      String
+  inputJson  String   // JSON
+  outputJson String   // JSON (may include { error } on failures)
+  tokensIn   Int?
+  tokensOut  Int?
+  durationMs Int?
+  status     String   @default("ok")  // ok | error | fallback
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+  @@index([feature, createdAt])
 }
