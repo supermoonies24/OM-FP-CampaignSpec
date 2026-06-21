@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Plus, Search, Settings, ChevronRight, ChevronDown,
-  CalendarDays, Inbox, LogOut, LayoutGrid, FilePlus, Users, Sparkles,
+  CalendarDays, Inbox, LogOut, LayoutGrid, FilePlus, Users, Sparkles, Bot, Activity, ShieldAlert, Gauge, Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,41 @@ interface CampaignSummary {
 }
 
 const UNSCHEDULED_KEY = "unscheduled";
+
+// Polls /api/notifications?counts=1 every 60s for an unread badge.
+function InboxLink() {
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/notifications?counts=1");
+        if (!res.ok) return;
+        const j = (await res.json()) as { unread?: number };
+        if (!cancelled) setUnread(j.unread ?? 0);
+      } catch {
+        // ignore — background poll, don't surface errors
+      }
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+  return (
+    <Link
+      href="/inbox"
+      className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+    >
+      <Inbox className="h-3.5 w-3.5" />
+      <span>Inbox</span>
+      {unread > 0 && (
+        <span className="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-medium tabular-nums">
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 function formatWeekOf(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -272,6 +307,42 @@ export function Sidebar() {
           <Sparkles className="h-3.5 w-3.5" />
           Brief Library
         </Link>
+        <Link
+          href="/admin/ai-runs"
+          className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+        >
+          <Bot className="h-3.5 w-3.5" />
+          AI Runs
+        </Link>
+        <Link
+          href="/activity"
+          className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+        >
+          <Activity className="h-3.5 w-3.5" />
+          Activity
+        </Link>
+        <Link
+          href="/risk"
+          className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+        >
+          <ShieldAlert className="h-3.5 w-3.5" />
+          Risk
+        </Link>
+        <Link
+          href="/admin/channels-velocity"
+          className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+        >
+          <Gauge className="h-3.5 w-3.5" />
+          Channel Velocity
+        </Link>
+        <Link
+          href="/admin/bulk-export"
+          className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"
+        >
+          <Package className="h-3.5 w-3.5" />
+          Bulk Export
+        </Link>
+        <InboxLink />
         <Link
           href="/settings/dropdowns"
           className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-accent"

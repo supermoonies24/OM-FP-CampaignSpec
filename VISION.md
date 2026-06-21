@@ -330,7 +330,7 @@ For v1, Ford Pro has no login — but mark them as a Channel in the data model s
 
 ## 8. AI architecture
 
-Three Claude API surface areas. All use `claude-sonnet-4-6` unless noted.
+Three Claude API surface areas. All use `claude-opus-4-8` unless noted.
 
 ### 8.1 Brief Deck Generator
 - Input: intake form JSON + alignment meeting notes
